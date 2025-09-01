@@ -372,21 +372,28 @@
       if (arr && arr.length) loadData(arr);
     };
     document.getElementById('btnSample').onclick = ()=>{
-    // توليد العينة
-    const n=240; let t = Math.floor(Date.now()/1000) - n*60;
-    const out=[]; let price=100, vol=1000;
+    console.log("تم الضغط على زر تحميل العينة"); // للتأكد من تشغيل الحدث
+    const n=240; 
+    let t = Math.floor(Date.now()/1000) - n*60;
+    const out=[]; 
+    let price=100, vol=1000;
+
     for (let i=0;i<n;i++){
         const drift = 0.03*Math.sin(i/20) + 0.05*(i/n);
         const noise = (Math.random()-0.5)*0.8;
         const ret = drift + noise;
-        const open=price;
-        const close=Math.max(10, price*(1+ret/100));
-        const high=Math.max(open, close)*(1+Math.random()*0.003);
-        const low =Math.min(open, close)*(1-Math.random()*0.003);
-        price=close; vol = 900 + Math.random()*400;
+        const open = price;
+        const close = Math.max(10, price*(1+ret/100));
+        const high = Math.max(open, close)*(1+Math.random()*0.003);
+        const low  = Math.min(open, close)*(1-Math.random()*0.003);
+        price = close; 
+        vol = 900 + Math.random()*400;
         out.push({ time: t, open:+open.toFixed(4), high:+high.toFixed(4), low:+low.toFixed(4), close:+close.toFixed(4), volume: Math.round(vol) });
-        t += 60; // دقيقة
+        t += 60;
     }
+
+    loadData(out); // مرة واحدة فقط
+};
     // استدعاء تحميل البيانات مرتين للتأكد
     loadData(out);
     candleSeries.setData(out.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
