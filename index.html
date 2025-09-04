@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>محلل الشارت — مناطق + RSI + اختراقات + موجة خامسة</title>
-  <!-- مكتبة الرسم Lightweight Charts من TradingView (CDN) -->
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     :root { color-scheme: dark; }
@@ -28,6 +27,7 @@
     }
     .hint { font-size:12px; color:#9aa4bd; }
     .pill { padding:4px 8px; border:1px solid #2a2f3a; border-radius:8px; display:inline-block; }
+    #errorMsg { color:#f87171; font-size:13px; margin-top:4px; min-height:18px; }
   </style>
 </head>
 <body>
@@ -60,6 +60,7 @@
         أو <b>JSON</b> كمصفوفة شموع [{time,open,high,low,close,volume}].
       </small>
       <textarea id="input" placeholder="ألصق بياناتك هنا ثم اضغط &quot;تحميل من الأسفل&quot;"></textarea>
+      <div id="errorMsg"></div>
       <div class="pill">إعدادات</div>
       <div class="wrap" style="padding:8px 0">
         <label>حساسية السوينغ (ZigZag %) <input id="zzPct" type="number" value="3" step="0.5" style="width:80px;"/></label><br/>
@@ -128,36 +129,48 @@
     const rsiOBLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
     const rsiOSLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
 
-    // مزامنة النطاق الزمني بين الرسمين
     chart.timeScale().subscribeVisibleTimeRangeChange((range)=>{ if(range) rsiChart.timeScale().setVisibleRange(range); });
 
     let data=[], zones=[], markers=[], waveMarkers=[];
 
     function parseInput(text){
+      const errorDiv = document.getElementById('errorMsg');
+      errorDiv.textContent = '';
       text = text.trim();
       if (!text) return null;
       try {
+        let out=[];
         if (text.startsWith('[') || text.startsWith('{')) {
           const js = JSON.parse(text);
-          return js.map(row=>({
+          out = js.map(row=>({
             time: toTs(row.time),
             open: +row.open, high:+row.high, low:+row.low, close:+row.close, volume:+(row.volume??0)
-          })).sort((a,b)=>a.time-b.time);
+          }));
+        } else {
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          const header = lines[0].toLowerCase();
+          const hasHeader = header.includes('time') && header.includes('open');
+          const start = hasHeader? 1:0;
+          for (let i=start;i<lines.length;i++){
+            const parts = lines[i].split(/,|;|\s+/).filter(Boolean);
+            if (parts.length<5) continue;
+            const [t,o,h,l,c,v] = parts;
+            if(isNaN(t)||isNaN(o)||isNaN(h)||isNaN(l)||isNaN(c)){
+              errorDiv.textContent = `خطأ في الصف ${i+1}: قيم غير رقمية.`;
+              continue;
+            }
+            out.push({ time: toTs(t), open:+o, high:+h, low:+l, close:+c, volume:+(v||0) });
+          }
         }
-        // CSV
-        const lines = text.split(/\r?\n/).filter(Boolean);
-        const header = lines[0].toLowerCase();
-        const hasHeader = header.includes('time') && header.includes('open');
-        const start = hasHeader? 1:0;
-        const out=[];
-        for (let i=start;i<lines.length;i++){
-          const parts = lines[i].split(/,|;|\s+/).filter(Boolean);
-          if (parts.length<5) continue;
-          const [t,o,h,l,c,v] = parts;
-          out.push({ time: toTs(t), open:+o, high:+h, low:+l, close:+c, volume:+(v||0) });
+        if(out.length===0){
+          errorDiv.textContent = 'لم يتم العثور على بيانات صالحة.';
+          return null;
         }
         return out.sort((a,b)=>a.time-b.time);
-      } catch(e){ alert('تعذّر قراءة البيانات: '+e.message); return null; }
+      } catch(e){
+        document.getElementById('errorMsg').textContent = 'تعذّر قراءة البيانات: '+e.message;
+        return null;
+      }
     }
 
     function loadData(arr){
@@ -165,7 +178,6 @@
       data = arr;
       candleSeries.setData(arr.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
       volumeSeries.setData(arr.map(d=>({ time:d.time, value:d.volume })));
-      // RSI
       const closes = arr.map(x=>x.close);
       const rsivals = rsi(closes, +document.getElementById('rsiLen').value || 14);
       rsiLine.setData(arr.map((d,i)=>({ time:d.time, value: rsivals[i] ?? null })));
@@ -179,7 +191,6 @@
       rsiChart.timeScale().fitContent();
     }
 
-    // === حساب مناطق الدعم/المقاومة بتجميع القمم/القيعان ضمن نطاق %
     function localExtremes(src, lookback=3){
       const highs=[], lows=[];
       for (let i=lookback;i<src.length-lookback;i++){
@@ -201,14 +212,13 @@
         if (!clusters.length){ clusters.push([lv]); continue; }
         const cur = clusters[clusters.length-1];
         const base = cur.reduce((s,x)=>s+x.price,0)/cur.length;
-        // ملاحظة: pct تُعيد نسبة مئوية، لذا rangePct يجب أن يكون أيضاً كنسبة مئوية (مثلاً 0.6 يعني 0.6%)
         if (Math.abs(pct(lv.price, base)) <= rangePct) cur.push(lv);
         else clusters.push([lv]);
       }
       return clusters.map(group=>{
         const prices=group.map(g=>g.price);
         return { min: Math.min(...prices), max: Math.max(...prices), count: group.length };
-      }).filter(z=>z.count>=2); // تجاهل الضعاف
+      }).filter(z=>z.count>=2);
     }
 
     function computeZones(){
@@ -219,8 +229,7 @@
         ...clusterLevels(highs, rangePct),
         ...clusterLevels(lows, rangePct),
       ];
-      // ارسم مناطق كـ price lines شبه شفافة
-      candleSeries.setPriceLines([]); // امسح
+      candleSeries.setPriceLines([]);
       const lines=[];
       zones.forEach(z=>{
         const mid = (z.min+z.max)/2;
@@ -232,7 +241,6 @@
       candleSeries.setPriceLines(lines);
     }
 
-    // === كشف اختراقات حقيقية/وهمية بناءً على الإغلاق حول المنطقة
     function detectBreakouts(){
       if (!zones.length || data.length<20) return [];
       const out=[];
@@ -245,7 +253,6 @@
           const closedAbove = c.close>top;
           const closedBelow = c.close<bot;
           if (inZonePrev && (closedAbove||closedBelow)){
-            // تأكيد: شمعة لاحقة تستمر، وإلا احتمال وهمي
             const next = data[i+1] || c;
             const real = closedAbove? next.close>=c.close : next.close<=c.close;
             out.push({
@@ -275,12 +282,10 @@
     function clearMarkers(){
       markers=[]; waveMarkers=[];
       candleSeries.setMarkers([]);
-      // إزالة أي سلسلة رسم موجة قديمة
       if (window.waveLine){ chart.removeSeries(window.waveLine); window.waveLine=null; }
       if (window.waveTargets){ window.waveTargets.forEach(s=>chart.removeSeries(s)); window.waveTargets=null; }
     }
 
-    // === ZigZag بسيط وموجة 5 مرشّحة
     function zigzag(src, thresholdPct=3){
       if (src.length<5) return [];
       const zz=[];
@@ -289,17 +294,9 @@
         const cur = src[i];
         const changeUp = pct(cur.close, last.close);
         const changeDn = pct(last.close, cur.close);
-        if (dir>=0 && changeDn>=thresholdPct){ // انعكاس لأسفل
-          zz.push({i:lastIdx, price:last.close});
-          dir=-1; last=cur; lastIdx=i;
-        } else if (dir<=0 && changeUp>=thresholdPct){ // انعكاس لأعلى
-          zz.push({i:lastIdx, price:last.close});
-          dir=1; last=cur; lastIdx=i;
-        } else {
-          // حدّث القمّة/القاع المستمر
-          if (dir>=0 && cur.close>last.close){ last=cur; lastIdx=i; }
-          if (dir<=0 && cur.close<last.close){ last=cur; lastIdx=i; }
-        }
+        if (dir>=0 && changeDn>=thresholdPct){ zz.push({i:lastIdx, price:last.close}); dir=-1; last=cur; lastIdx=i; }
+        else if (dir<=0 && changeUp>=thresholdPct){ zz.push({i:lastIdx, price:last.close}); dir=1; last=cur; lastIdx=i; }
+        else { if (dir>=0 && cur.close>last.close){ last=cur; lastIdx=i; } if (dir<=0 && cur.close<last.close){ last=cur; lastIdx=i; } }
       }
       zz.push({i:lastIdx, price:last.close});
       return zz;
@@ -309,111 +306,41 @@
       const threshold = +document.getElementById('zzPct').value || 3;
       const zz = zigzag(src, threshold);
       if (zz.length<6) return null;
-      // خذ آخر 6 نقاط لتقييم 1-2-3-4-5-(نهاية)
       const tail = zz.slice(-6);
       const isUp = tail[5].price > tail[4].price;
-      const [p1,p2,p3,p4,p5] = tail;
-      const lastBar = src[src.length-1];
-
-      // طول الموجة "1-3" (من نهاية 1 إلى نهاية 3) كمرجع للامتداد
-      const len13 = Math.abs(p4.price - p2.price);
-      // أهداف موجة 5: 0.618 و 1.0 من طول (1→3) مضافة بعد (4)
-      const t618 = isUp ? p5.price + 0.618*len13 : p5.price - 0.618*len13;
-      const t100 = isUp ? p5.price + 1.0*len13   : p5.price - 1.0*len13;
-
-      return { isUp, points:[p1,p2,p3,p4,p5], targets:[t618, t100], current:lastBar.close, lastIndex:lastBar.time };
-    }
-
-    function drawWave(wave){
-      if (!wave) return;
-      // خط يربط نقاط الموجة
-      if (window.waveLine){ chart.removeSeries(window.waveLine); }
-      const line = chart.addLineSeries({ lineWidth: 2 });
-      const pts = wave.points.map(p=>({ time: data[p.i].time, value: p.price }));
-      line.setData(pts);
-      window.waveLine = line;
-
-      if (window.waveTargets){ window.waveTargets.forEach(s=>chart.removeSeries(s)); }
-      window.waveTargets = wave.targets.map((tg)=>{
-        const ls = chart.addLineSeries({ lineWidth:1, lineStyle:2 });
-        ls.setData([{time:data[0].time, value:tg}, {time:data[data.length-1].time, value:tg}]);
-        return ls;
+      window.waveLine = chart.addLineSeries({ color:'#22c55e', lineWidth:2 });
+      window.waveLine.setData(tail.map((p,idx)=>({ time: src[p.i].time, value:p.price })));
+      const targets = [];
+      const lastPrice = tail[5].price;
+      [0.618,1,1.618].forEach(r=>{
+        const s = chart.addLineSeries({ color:'#7c3aed', lineWidth:1, lineStyle:2 });
+        s.setData([{time:src[tail[5].i].time, value:lastPrice*r}, {time:src[src.length-1].time, value:lastPrice*r}]);
+        targets.push(s);
       });
-      // ضع ماركرات توضيحية
-      waveMarkers = [
-        ...wave.points.map((p,idx)=>({
-          time: data[p.i].time,
-          position: LightweightCharts.SeriesMarkerPosition.AboveBar,
-          color: '#8ab4f8',
-          shape: LightweightCharts.SeriesMarkerShape.Circle,
-          text: `P${idx+1}`
-        })),
-        {
-          time: data[data.length-1].time,
-          position: LightweightCharts.SeriesMarkerPosition.BelowBar,
-          color: wave.isUp? '#22c55e' : '#ef4444',
-          shape: LightweightCharts.SeriesMarkerShape.ArrowUp,
-          text: wave.isUp? 'Wave5↑ (مرشّحة)' : 'Wave5↓ (مرشّحة)'
-        }
-      ];
-      candleSeries.setMarkers([...(markers||[]), ...waveMarkers]);
+      window.waveTargets = targets;
     }
 
-    // === أحداث الأزرار ===
-    document.getElementById('btnZones').onclick = ()=>{
-      computeZones();
-      const br = detectBreakouts();
-      applyMarkers(br);
-    };
-    document.getElementById('btnWave').onclick = ()=>{
-      const w = detectFifthWave(data);
-      drawWave(w);
-    };
-    document.getElementById('btnClear').onclick = ()=> clearMarkers();
-    document.getElementById('btnPaste').onclick = ()=>{
-      const arr = parseInput(document.getElementById('input').value);
-      if (arr && arr.length) loadData(arr);
-    };
-    document.getElementById('btnSample').onclick = ()=>{
-      // توليد عيّنة صناعية تشبه ترند صاعد مع تصحيحات
-      const n=240; 
-      let t = Math.floor(Date.now()/1000) - n*60;
-      const out=[]; 
-      let price=100, vol=1000;
-
-      for (let i=0;i<n;i++){
-        const drift = 0.03*Math.sin(i/20) + 0.05*(i/n);
-        const noise = (Math.random()-0.5)*0.8;
-        const ret = drift + noise;
-        const open = price;
-        const close = Math.max(10, price*(1+ret/100));
-        const high = Math.max(open, close)*(1+Math.random()*0.003);
-        const low  = Math.min(open, close)*(1-Math.random()*0.003);
-        price = close; 
-        vol = 900 + Math.random()*400;
-        out.push({ 
-          time: t, 
-          open:+open.toFixed(4), 
-          high:+high.toFixed(4), 
-          low:+low.toFixed(4), 
-          close:+close.toFixed(4), 
-          volume: Math.round(vol) 
-        });
-        t += 60; // دقيقة
-      }
-      loadData(out);
-    };
-
-    // ابدأ بعيّنة افتراضيًا لتجربة سريعة
-    document.addEventListener('DOMContentLoaded', ()=> {
-      document.getElementById('btnSample').click();
+    // ==== أزرار الأحداث ====
+    document.getElementById('btnSample').addEventListener('click',()=>{
+      const sample = `time,open,high,low,close,volume
+1680000000,100,105,99,104,1000
+1680003600,104,108,103,107,1200
+1680007200,107,110,106,109,1500
+1680010800,109,111,108,110,900
+1680014400,110,112,109,111,1300`;
+      document.getElementById('input').value = sample;
+      const arr = parseInput(sample);
+      loadData(arr);
     });
-
-    // تحسين الاستجابة للحجم
-    window.addEventListener('resize', ()=>{
-      chart.timeScale().fitContent();
-      rsiChart.timeScale().fitContent();
+    document.getElementById('btnPaste').addEventListener('click',()=>{
+      const txt = document.getElementById('input').value;
+      const arr = parseInput(txt);
+      loadData(arr);
     });
+    document.getElementById('btnZones').addEventListener('click',()=>computeZones());
+    document.getElementById('btnWave').addEventListener('click',()=>detectFifthWave(data));
+    document.getElementById('btnClear').addEventListener('click',()=>clearMarkers());
+
   </script>
 </body>
 </html>
