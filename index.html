@@ -7,17 +7,19 @@
   <!-- مكتبة الرسم Lightweight Charts من TradingView (CDN) -->
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0f1115; color:#eaeaea; }
     header { padding: 12px 16px; border-bottom: 1px solid #222; display:flex; flex-wrap:wrap; gap:8px; align-items: center; }
     header h1 { font-size: 16px; margin: 0 8px 0 0; }
     .toolbar { display:flex; flex-wrap: wrap; gap:8px; align-items:center; }
     .toolbar > * { font-size:14px; }
-    button, select { background:#1a1d24; color:#eaeaea; border:1px solid #2a2f3a; border-radius:8px; padding:8px 10px; }
+    button, select { background:#1a1d24; color:#eaeaea; border:1px solid #2a2f3a; border-radius:8px; padding:8px 10px; cursor:pointer; }
     button:hover { border-color:#3a4252; }
-    textarea { width:100%; min-height:140px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:10px; padding:10px; }
+    textarea { width:100%; min-height:160px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:10px; padding:10px; }
     .wrap { padding:12px; display:grid; gap:12px; }
-    #chart { height: 56vh; }
-    #rsichart { height: 18vh; }
+    #chart { height: 56vh; min-height: 320px; }
+    #rsichart { height: 18vh; min-height: 160px; }
     .badge { display:inline-block; padding:3px 8px; border:1px solid #2a2f3a; border-radius:999px; font-size:12px; background:#151821; }
     .grid { display:grid; gap:12px; }
     @media (min-width: 900px){
@@ -25,7 +27,7 @@
       #chart { height:60vh; }
     }
     .hint { font-size:12px; color:#9aa4bd; }
-    .pill { padding:4px 8px; border:1px solid #2a2f3a; border-radius:8px; }
+    .pill { padding:4px 8px; border:1px solid #2a2f3a; border-radius:8px; display:inline-block; }
   </style>
 </head>
 <body>
@@ -33,7 +35,7 @@
     <h1>محلل الشارت</h1>
     <span class="badge">دعم/مقاومة + اختراقات + RSI + موجة 5</span>
     <div class="toolbar">
-      <select id="tf">
+      <select id="tf" title="الإطار الزمني (اختياري)">
         <option value="auto">الإطار: تلقائي (من البيانات)</option>
         <option value="1">1m</option><option value="5">5m</option><option value="15">15m</option>
         <option value="60">1h</option><option value="240">4h</option><option value="D">يومي</option>
@@ -57,7 +59,7 @@
         الصيغ المدعومة: <b>CSV</b> بالأعمدة: time, open, high, low, close, volume (الوقت بالثواني/مللي/ISO)<br/>
         أو <b>JSON</b> كمصفوفة شموع [{time,open,high,low,close,volume}].
       </small>
-      <textarea id="input"></textarea>
+      <textarea id="input" placeholder="ألصق بياناتك هنا ثم اضغط &quot;تحميل من الأسفل&quot;"></textarea>
       <div class="pill">إعدادات</div>
       <div class="wrap" style="padding:8px 0">
         <label>حساسية السوينغ (ZigZag %) <input id="zzPct" type="number" value="3" step="0.5" style="width:80px;"/></label><br/>
@@ -79,12 +81,8 @@
       const dt = new Date(t); return Math.floor(dt.getTime()/1000);
     };
     const ema = (arr, len) => {
-      const k = 2/(len+1); let ema=null; const out=[];
-      for (let i=0;i<arr.length;i++){
-        const v = arr[i];
-        ema = (ema==null)? v : (v - ema)*k + ema;
-        out.push(ema);
-      }
+      const k = 2/(len+1); let e=null; const out=[];
+      for (let i=0;i<arr.length;i++){ const v=arr[i]; e = (e==null)? v : (v - e)*k + e; out.push(e); }
       return out;
     };
     const rsi = (closes, len=14) => {
@@ -99,8 +97,7 @@
       const out=[null];
       for (let i=0;i<avgG.length;i++){
         const rs = (avgL[i]===0)? 100 : (avgG[i]/avgL[i]);
-        const val = 100 - (100/(1+rs));
-        out.push(val);
+        out.push(100 - (100/(1+rs)));
       }
       return out;
     };
@@ -131,8 +128,10 @@
     const rsiOBLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
     const rsiOSLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
 
+    // مزامنة النطاق الزمني بين الرسمين
+    chart.timeScale().subscribeVisibleTimeRangeChange((range)=>{ if(range) rsiChart.timeScale().setVisibleRange(range); });
+
     let data=[], zones=[], markers=[], waveMarkers=[];
-    let lastTimeframe='auto';
 
     function parseInput(text){
       text = text.trim();
@@ -162,6 +161,7 @@
     }
 
     function loadData(arr){
+      if(!arr || !arr.length) return;
       data = arr;
       candleSeries.setData(arr.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
       volumeSeries.setData(arr.map(d=>({ time:d.time, value:d.volume })));
@@ -175,6 +175,8 @@
       rsiOSLine.setData([{time:arr[0].time, value:os},{time:arr[arr.length-1].time, value:os}]);
       clearMarkers();
       computeZones();
+      chart.timeScale().fitContent();
+      rsiChart.timeScale().fitContent();
     }
 
     // === حساب مناطق الدعم/المقاومة بتجميع القمم/القيعان ضمن نطاق %
@@ -199,13 +201,14 @@
         if (!clusters.length){ clusters.push([lv]); continue; }
         const cur = clusters[clusters.length-1];
         const base = cur.reduce((s,x)=>s+x.price,0)/cur.length;
+        // ملاحظة: pct تُعيد نسبة مئوية، لذا rangePct يجب أن يكون أيضاً كنسبة مئوية (مثلاً 0.6 يعني 0.6%)
         if (Math.abs(pct(lv.price, base)) <= rangePct) cur.push(lv);
         else clusters.push([lv]);
       }
       return clusters.map(group=>{
         const prices=group.map(g=>g.price);
         return { min: Math.min(...prices), max: Math.max(...prices), count: group.length };
-      }).filter(z=>z.count>=2); // تجاهل الضغاف
+      }).filter(z=>z.count>=2); // تجاهل الضعاف
     }
 
     function computeZones(){
@@ -213,8 +216,8 @@
       const rangePct = (+document.getElementById('zonePct').value || 0.6);
       const {highs, lows} = localExtremes(data, 3);
       zones = [
-        ...clusterLevels(highs, rangePct/100),
-        ...clusterLevels(lows, rangePct/100),
+        ...clusterLevels(highs, rangePct),
+        ...clusterLevels(lows, rangePct),
       ];
       // ارسم مناطق كـ price lines شبه شفافة
       candleSeries.setPriceLines([]); // امسح
@@ -249,7 +252,8 @@
               time:c.time,
               text: (closedAbove? 'اختراق ↑ ':'كسر ↓ ') + (real?'حقيقي':'وهمي'),
               color: real? '#2dd4bf' : '#f59e0b',
-              position: closedAbove? 'belowBar':'aboveBar'
+              position: closedAbove? 'belowBar':'aboveBar',
+              shape: closedAbove? 'ArrowUp' : 'ArrowDown'
             });
           }
         }
@@ -259,11 +263,15 @@
 
     function applyMarkers(arr){
       markers = arr.map(m=>({
-        time:m.time, position: m.position==='belowBar' ? LightweightCharts.SeriesMarkerPosition.BelowBar : LightweightCharts.SeriesMarkerPosition.AboveBar,
-        color:m.color, shape: LightweightCharts.SeriesMarkerShape.ArrowUp, text:m.text
+        time:m.time,
+        position: m.position==='belowBar' ? LightweightCharts.SeriesMarkerPosition.BelowBar : LightweightCharts.SeriesMarkerPosition.AboveBar,
+        color:m.color,
+        shape: m.shape==='ArrowDown' ? LightweightCharts.SeriesMarkerShape.ArrowDown : LightweightCharts.SeriesMarkerShape.ArrowUp,
+        text:m.text
       }));
       candleSeries.setMarkers(markers);
     }
+
     function clearMarkers(){
       markers=[]; waveMarkers=[];
       candleSeries.setMarkers([]);
@@ -298,18 +306,13 @@
     }
 
     function detectFifthWave(src){
-      // منطق تقريبي: نبحث عن تسلسل 5 نقاط ZigZag أخير يشبه 1-2-3-4-5 دافعة
       const threshold = +document.getElementById('zzPct').value || 3;
       const zz = zigzag(src, threshold);
       if (zz.length<6) return null;
       // خذ آخر 6 نقاط لتقييم 1-2-3-4-5-(نهاية)
       const tail = zz.slice(-6);
-      // نتوقع: 0→1 تصحيح، 1→2 اندفاع، 2→3 تصحيح، 3→4 اندفاع (محتمل موجة 5)
-      // نقرر بحسب اتجاه آخر اندفاع:
       const isUp = tail[5].price > tail[4].price;
-      // نحدد نقاط افتراضية: 1=بداية 1، 2=نهاية 1، 3=نهاية 2، 4=نهاية 3، 5=نهاية 4، X=السعر الحالي
-      // لأغراض العرض فقط، نعيد مؤشرات وخط أهداف فيبو للموجة 5
-      const p1 = tail[0], p2=tail[1], p3=tail[2], p4=tail[3], p5=tail[4];
+      const [p1,p2,p3,p4,p5] = tail;
       const lastBar = src[src.length-1];
 
       // طول الموجة "1-3" (من نهاية 1 إلى نهاية 3) كمرجع للامتداد
@@ -331,7 +334,7 @@
       window.waveLine = line;
 
       if (window.waveTargets){ window.waveTargets.forEach(s=>chart.removeSeries(s)); }
-      window.waveTargets = wave.targets.map((tg,i)=>{
+      window.waveTargets = wave.targets.map((tg)=>{
         const ls = chart.addLineSeries({ lineWidth:1, lineStyle:2 });
         ls.setData([{time:data[0].time, value:tg}, {time:data[data.length-1].time, value:tg}]);
         return ls;
@@ -372,55 +375,45 @@
       if (arr && arr.length) loadData(arr);
     };
     document.getElementById('btnSample').onclick = ()=>{
-  console.log("تم الضغط على زر تحميل العينة"); 
-  const n=240; 
-  let t = Math.floor(Date.now()/1000) - n*60;
-  const out=[]; 
-  let price=100, vol=1000;
-
-  for (let i=0;i<n;i++){
-      const drift = 0.03*Math.sin(i/20) + 0.05*(i/n);
-      const noise = (Math.random()-0.5)*0.8;
-      const ret = drift + noise;
-      const open = price;
-      const close = Math.max(10, price*(1+ret/100));
-      const high = Math.max(open, close)*(1+Math.random()*0.003);
-      const low  = Math.min(open, close)*(1-Math.random()*0.003);
-      price = close; 
-      vol = 900 + Math.random()*400;
-      out.push({ 
-        time: t, 
-        open:+open.toFixed(4), 
-        high:+high.toFixed(4), 
-        low:+low.toFixed(4), 
-        close:+close.toFixed(4), 
-        volume: Math.round(vol) 
-      });
-      t += 60;
-  }
-
-  loadData(out); 
-};
       // توليد عيّنة صناعية تشبه ترند صاعد مع تصحيحات
-      const n=240; let t = Math.floor(Date.now()/1000) - n*60;
-      const out=[]; let price=100, vol=1000;
+      const n=240; 
+      let t = Math.floor(Date.now()/1000) - n*60;
+      const out=[]; 
+      let price=100, vol=1000;
+
       for (let i=0;i<n;i++){
         const drift = 0.03*Math.sin(i/20) + 0.05*(i/n);
         const noise = (Math.random()-0.5)*0.8;
         const ret = drift + noise;
-        const open=price;
-        const close=Math.max(10, price*(1+ret/100));
-        const high=Math.max(open, close)*(1+Math.random()*0.003);
-        const low =Math.min(open, close)*(1-Math.random()*0.003);
-        price=close; vol = 900 + Math.random()*400;
-        out.push({ time: t, open:+open.toFixed(4), high:+high.toFixed(4), low:+low.toFixed(4), close:+close.toFixed(4), volume: Math.round(vol) });
+        const open = price;
+        const close = Math.max(10, price*(1+ret/100));
+        const high = Math.max(open, close)*(1+Math.random()*0.003);
+        const low  = Math.min(open, close)*(1-Math.random()*0.003);
+        price = close; 
+        vol = 900 + Math.random()*400;
+        out.push({ 
+          time: t, 
+          open:+open.toFixed(4), 
+          high:+high.toFixed(4), 
+          low:+low.toFixed(4), 
+          close:+close.toFixed(4), 
+          volume: Math.round(vol) 
+        });
         t += 60; // دقيقة
       }
       loadData(out);
     };
 
     // ابدأ بعيّنة افتراضيًا لتجربة سريعة
-    document.getElementById('btnSample').click();
+    document.addEventListener('DOMContentLoaded', ()=> {
+      document.getElementById('btnSample').click();
+    });
+
+    // تحسين الاستجابة للحجم
+    window.addEventListener('resize', ()=>{
+      chart.timeScale().fitContent();
+      rsiChart.timeScale().fitContent();
+    });
   </script>
 </body>
 </html>
