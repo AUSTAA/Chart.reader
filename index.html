@@ -76,21 +76,17 @@
   <script>
     // ==== أدوات مساعدة ====
     const toTs = (t) => {
-  // إذا كانت قيمة نصية، اتركها كما هي لتُعرض على المحور
-  if (typeof t === 'string') return t;
-  // إذا كانت رقمية (ثواني)، حولها إلى نص YYYY-MM-DD
-  if (typeof t === 'number') {
-    const dt = new Date(t*1000);
-    return dt.toISOString().split('T')[0];
-  }
-  const dt = new Date(t);
-  return dt.toISOString().split('T')[0];
-};
+      if (typeof t === 'string') return t; // اترك النصوص كما هي
+      if (typeof t === 'number') return t; // أرقام (ثواني)
+      return new Date(t).getTime()/1000;
+    };
+
     const ema = (arr, len) => {
       const k = 2/(len+1); let e=null; const out=[];
       for (let i=0;i<arr.length;i++){ const v=arr[i]; e = (e==null)? v : (v - e)*k + e; out.push(e); }
       return out;
     };
+
     const rsi = (closes, len=14) => {
       let gains=[], losses=[];
       for (let i=1;i<closes.length;i++){
@@ -107,42 +103,46 @@
       }
       return out;
     };
+
     const pct = (a,b)=> ((a-b)/b)*100;
 
     // ==== إعداد الرسم ====
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' }, grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} }, crosshair: { mode: 1 }, rightPriceScale: { borderColor: '#2a2f3a' }, timeScale: { borderColor: '#2a2f3a' }, autoSize: true });
-    const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor:'#26a69a', wickDownColor:'#ef5350' });
-    const volumeSeries = chart.addHistogramSeries({ priceFormat: { type:'volume' }, priceScaleId:'left', scaleMargins:{ top:0.8, bottom:0 }, color:'#39435a' });
+    const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout:{background:{type:'Solid',color:'#0f1115'}, textColor:'#dbe1f4'}, grid:{vertLines:{color:'#151923'}, horzLines:{color:'#151923'}}, crosshair:{mode:1}, rightPriceScale:{borderColor:'#2a2f3a'}, timeScale:{borderColor:'#2a2f3a'}, autoSize:true });
+    const candleSeries = chart.addCandlestickSeries({ upColor:'#26a69a', downColor:'#ef5350', borderVisible:false, wickUpColor:'#26a69a', wickDownColor:'#ef5350' });
+    const volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'left', scaleMargins:{top:0.8,bottom:0}, color:'#39435a' });
 
-    const rsiChart = LightweightCharts.createChart(document.getElementById('rsichart'), { layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' }, grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} }, rightPriceScale: { borderColor: '#2a2f3a' }, timeScale: { borderColor: '#2a2f3a' }, autoSize: true });
-    const rsiLine = rsiChart.addLineSeries({ lineWidth: 2 });
+    const rsiChart = LightweightCharts.createChart(document.getElementById('rsichart'), { layout:{background:{type:'Solid',color:'#0f1115'}, textColor:'#dbe1f4'}, grid:{vertLines:{color:'#151923'}, horzLines:{color:'#151923'}}, rightPriceScale:{borderColor:'#2a2f3a'}, timeScale:{borderColor:'#2a2f3a'}, autoSize:true });
+    const rsiLine = rsiChart.addLineSeries({ lineWidth:2 });
     const rsiOBLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
     const rsiOSLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
 
-    chart.timeScale().subscribeVisibleTimeRangeChange((range)=>{ if(range) rsiChart.timeScale().setVisibleRange(range); });
+    chart.timeScale().subscribeVisibleTimeRangeChange(range=>{ if(range) rsiChart.timeScale().setVisibleRange(range); });
 
     let data=[], zones=[], markers=[], waveMarkers=[];
 
     function parseInput(text){
       text = text.trim();
-      if (!text) return null;
+      if(!text) return null;
       try {
-        if (text.startsWith('[') || text.startsWith('{')) {
-          const js = JSON.parse(text);
-          return js.map(row=>({ time: toTs(row.time), open: +row.open, high:+row.high, low:+row.low, close:+row.close, volume:+(row.volume??0) })).sort((a,b)=>a.time-b.time);
-        }
         const lines = text.split(/\r?\n/).filter(Boolean);
         const header = lines[0].toLowerCase();
         const hasHeader = header.includes('time') && header.includes('open');
         const start = hasHeader? 1:0;
         const out=[];
-        for (let i=start;i<lines.length;i++){
+        for(let i=start;i<lines.length;i++){
           const parts = lines[i].split(/,|;|\s+/).filter(Boolean);
-          if (parts.length<5) continue;
-          const [t,o,h,l,c,v] = parts;
-          out.push({ time: toTs(t), open:+o, high:+h, low:+l, close:+c, volume:+(v||0) });
+          if(parts.length<5) continue;
+          let t = parts[0]; // اترك النصوص كما هي
+          out.push({
+            time: t,
+            open: +parts[1],
+            high: +parts[2],
+            low: +parts[3],
+            close: +parts[4],
+            volume: +(parts[5]||0)
+          });
         }
-        return out.sort((a,b)=>a.time-b.time);
+        return out;
       } catch(e){ alert('تعذّر قراءة البيانات: '+e.message); return null; }
     }
 
@@ -158,21 +158,21 @@
       const os = +document.getElementById('rsiOS').value || 30;
       rsiOBLine.setData([{time:arr[0].time, value:ob},{time:arr[arr.length-1].time, value:ob}]);
       rsiOSLine.setData([{time:arr[0].time, value:os},{time:arr[arr.length-1].time, value:os}]);
-      clearMarkers();
-      computeZones();
-      chart.timeScale().fitContent();
-      rsiChart.timeScale().fitContent();
     }
 
-    // ==== تحميل بيانات عيّنة عند الضغط ====
+    // ==== زر تحميل عينة الذهب ====
     document.getElementById('btnSample').addEventListener('click',()=>{
       const sampleCSV = `time,open,high,low,close,volume
-2025-09-01T10:00:00,100,105,99,102,500
-2025-09-01T11:00:00,102,106,101,104,600
-2025-09-01T12:00:00,104,107,103,105,550
-2025-09-01T13:00:00,105,108,104,107,700
-2025-09-01T14:00:00,107,110,106,109,650
-2025-09-01T15:00:00,109,111,108,110,500`;
+2025-09-05,1965.20,1972.50,1960.10,1968.30,12000
+2025-09-04,1958.40,1966.00,1955.00,1964.50,9800
+2025-09-03,1960.00,1965.50,1950.30,1957.20,15000
+2025-09-02,1948.50,1962.00,1945.00,1958.00,20000
+2025-09-01,1945.00,1955.00,1940.50,1950.30,18000
+2025-08-31,1938.00,1948.50,1935.00,1945.10,22000
+2025-08-30,1940.00,1945.50,1930.00,1938.40,16000
+2025-08-29,1935.50,1942.00,1930.00,1940.00,14000
+2025-08-28,1928.00,1938.00,1925.00,1935.50,12500
+2025-08-27,1925.00,1932.50,1920.00,1928.00,13500`;
       const parsed = parseInput(sampleCSV);
       loadData(parsed);
     });
@@ -183,8 +183,13 @@
       if(parsed) loadData(parsed);
     });
 
-    // مسح العلامات
-    document.getElementById('btnClear').addEventListener('click', clearMarkers);
+    document.getElementById('btnClear').addEventListener('click', ()=>{
+      candleSeries.setData([]);
+      volumeSeries.setData([]);
+      rsiLine.setData([]);
+      rsiOBLine.setData([]);
+      rsiOSLine.setData([]);
+    });
   </script>
 </body>
 </html>
