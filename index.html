@@ -3,90 +3,127 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>محلل الذهب — مناطق + RSI + اختراقات + موجة خامسة</title>
+  <title>محلل الشارت — الذهب + RSI + مناطق</title>
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#0f1115; color:#eaeaea; }
-    header { padding:12px 16px; border-bottom:1px solid #222; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    header h1 { font-size:16px; margin:0 8px 0 0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0f1115; color:#eaeaea; }
+    header { padding: 12px 16px; border-bottom: 1px solid #222; display:flex; flex-wrap:wrap; gap:8px; align-items: center; }
+    header h1 { font-size: 16px; margin: 0 8px 0 0; }
     .toolbar { display:flex; flex-wrap: wrap; gap:8px; align-items:center; }
+    .toolbar > * { font-size:14px; }
     button, select { background:#1a1d24; color:#eaeaea; border:1px solid #2a2f3a; border-radius:8px; padding:8px 10px; cursor:pointer; }
     button:hover { border-color:#3a4252; }
     textarea { width:100%; min-height:160px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:10px; padding:10px; }
     .wrap { padding:12px; display:grid; gap:12px; }
-    #chart { height:56vh; min-height:320px; }
-    #rsichart { height:18vh; min-height:160px; }
+    #chart { height: 56vh; min-height: 320px; }
+    #rsichart { height: 18vh; min-height: 160px; }
     .badge { display:inline-block; padding:3px 8px; border:1px solid #2a2f3a; border-radius:999px; font-size:12px; background:#151821; }
     .grid { display:grid; gap:12px; }
-    @media (min-width: 900px){ .grid { grid-template-columns:2fr 1fr; } #chart { height:60vh; } }
+    @media (min-width: 900px){
+      .grid { grid-template-columns: 2fr 1fr; }
+      #chart { height:60vh; }
+    }
     .hint { font-size:12px; color:#9aa4bd; }
     .pill { padding:4px 8px; border:1px solid #2a2f3a; border-radius:8px; display:inline-block; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>محلل الذهب</h1>
-    <span class="badge">دعم/مقاومة + اختراقات + RSI + موجة 5</span>
-    <div class="toolbar">
-      <button id="btnSample">تحميل عيّنة الذهب</button>
-      <button id="btnPaste">تحميل من الأسفل</button>
-      <button id="btnClear">مسح العلامات</button>
-    </div>
-  </header>
-
-  <div class="wrap grid">
-    <div>
-      <div id="chart"></div>
-      <div id="rsichart"></div>
-    </div>
-    <div>
-      <div class="pill">لصق بياناتك هنا (CSV أو JSON)</div>
-      <textarea id="input" placeholder="ألصق بياناتك هنا ثم اضغط &quot;تحميل من الأسفل&quot;"></textarea>
-      <small class="hint">
-        الصيغ المدعومة: <b>CSV</b> بالأعمدة: time, open, high, low, close, volume
-      </small>
-    </div>
+<header>
+  <h1>محلل الشارت</h1>
+  <span class="badge">ذهب + RSI + مناطق</span>
+  <div class="toolbar">
+    <button id="btnSample">تحميل عينة الذهب</button>
+    <button id="btnPaste">تحميل من الأسفل</button>
   </div>
+</header>
 
-  <script>
-    // ==== أدوات مساعدة ====
-    const toTs = t => t; // استخدم التاريخ النصي مباشرة
-    const ema = (arr,len)=>{ const k=2/(len+1); let e=null, out=[]; for(let i=0;i<arr.length;i++){ const v=arr[i]; e=(e==null)?v:(v-e)*k+e; out.push(e);} return out;};
-    const rsi = (closes,len=14)=>{ let gains=[], losses=[]; for(let i=1;i<closes.length;i++){ const d=closes[i]-closes[i-1]; gains.push(Math.max(d,0)); losses.push(Math.max(-d,0)); } const avgG=ema(gains,len-1), avgL=ema(losses,len-1); const out=[null]; for(let i=0;i<avgG.length;i++){ const rs=avgL[i]===0?100:avgG[i]/avgL[i]; out.push(100-(100/(1+rs))); } return out;};
+<div class="wrap grid">
+  <div>
+    <div id="chart"></div>
+    <div id="rsichart"></div>
+  </div>
+  <div>
+    <div class="pill">لصق بياناتك هنا (CSV أو JSON)</div>
+    <textarea id="input" placeholder="ألصق بياناتك هنا ثم اضغط &quot;تحميل من الأسفل&quot;"></textarea>
+    <small class="hint">
+      الصيغ المدعومة: CSV بالأعمدة: time, open, high, low, close, volume <br>
+      الوقت بصيغة YYYY-MM-DD أو ISO.
+    </small>
+  </div>
+</div>
 
-    // ==== إعداد الرسم ====
-    const chart=LightweightCharts.createChart(document.getElementById('chart'),{layout:{background:{type:'Solid',color:'#0f1115'},textColor:'#dbe1f4'}, grid:{vertLines:{color:'#151923'},horzLines:{color:'#151923'}},crosshair:{mode:1},rightPriceScale:{borderColor:'#2a2f3a'},timeScale:{borderColor:'#2a2f3a'},autoSize:true});
-    const candleSeries=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderVisible:false,wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
-    const volumeSeries=chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'left',scaleMargins:{top:0.8,bottom:0},color:'#39435a'});
-    const rsiChart=LightweightCharts.createChart(document.getElementById('rsichart'),{layout:{background:{type:'Solid',color:'#0f1115'},textColor:'#dbe1f4'},grid:{vertLines:{color:'#151923'},horzLines:{color:'#151923'}},rightPriceScale:{borderColor:'#2a2f3a'},timeScale:{borderColor:'#2a2f3a'},autoSize:true});
-    const rsiLine=rsiChart.addLineSeries({lineWidth:2});
-
-    let data=[];
-
-    function parseCSV(text){
-      const lines=text.trim().split(/\r?\n/).filter(Boolean);
-      const header=lines[0].toLowerCase();
-      const start=header.includes('time')?1:0;
-      return lines.slice(start).map(l=>{
-        const [t,o,h,lw,c,v]=l.split(','); return {time:t, open:+o, high:+h, low:+lw, close:+c, volume:+v};
-      });
+<script>
+  // ==== أدوات مساعدة ====
+  const ema = (arr, len) => {
+    const k = 2/(len+1); let e=null; const out=[];
+    for (let i=0;i<arr.length;i++){ const v=arr[i]; e = (e==null)? v : (v - e)*k + e; out.push(e); }
+    return out;
+  };
+  const rsi = (closes, len=14) => {
+    let gains=[], losses=[];
+    for (let i=1;i<closes.length;i++){
+      const diff = closes[i]-closes[i-1];
+      gains.push(Math.max(diff,0));
+      losses.push(Math.max(-diff,0));
     }
-
-    function loadData(arr){
-      if(!arr||!arr.length) return;
-      data=arr;
-      candleSeries.setData(arr.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
-      volumeSeries.setData(arr.map(d=>({time:d.time,value:d.volume})));
-      const closes=arr.map(x=>x.close);
-      const rsivals=rsi(closes,14);
-      rsiLine.setData(arr.map((d,i)=>({time:d.time,value:rsivals[i]??null})));
+    const avgG = ema(gains, len-1);
+    const avgL = ema(losses, len-1);
+    const out=[null];
+    for (let i=0;i<avgG.length;i++){
+      const rs = (avgL[i]===0)? 100 : (avgG[i]/avgL[i]);
+      out.push(100 - (100/(1+rs)));
     }
+    return out;
+  };
 
-    // ==== أحداث الأزرار ====
-    document.getElementById('btnSample').onclick=()=>{
-      const sample=`time,open,high,low,close,volume
+  // ==== إعداد الرسم ====
+  const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+    layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' },
+    grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
+    crosshair: { mode: 1 },
+    rightPriceScale: { borderColor: '#2a2f3a' },
+    timeScale: { borderColor: '#2a2f3a' }, autoSize: true
+  });
+  const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor:'#26a69a', wickDownColor:'#ef5350' });
+
+  const rsiChart = LightweightCharts.createChart(document.getElementById('rsichart'), {
+    layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' },
+    grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
+    rightPriceScale: { borderColor: '#2a2f3a' },
+    timeScale: { borderColor: '#2a2f3a' }, autoSize: true
+  });
+  const rsiLine = rsiChart.addLineSeries({ lineWidth: 2 });
+
+  chart.timeScale().subscribeVisibleTimeRangeChange((range)=>{ if(range) rsiChart.timeScale().setVisibleRange(range); });
+
+  let data=[];
+
+  function parseCSV(text){
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    const header = lines[0].toLowerCase();
+    const start = header.includes('time') ? 1 : 0;
+    return lines.slice(start).map(l => {
+      const [t,o,h,lw,c,v] = l.split(',');
+      const ts = Math.floor(new Date(t).getTime()/1000); // تحويل التاريخ إلى timestamp بالثواني
+      return {time: ts, open:+o, high:+h, low:+lw, close:+c, volume:+v};
+    });
+  }
+
+  function loadData(arr){
+    if(!arr || !arr.length) return;
+    data = arr;
+    candleSeries.setData(arr.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
+    const closes = arr.map(x=>x.close);
+    const rsivals = rsi(closes, 14);
+    rsiLine.setData(arr.map((d,i)=>({ time:d.time, value: rsivals[i] ?? null })));
+    chart.timeScale().fitContent();
+    rsiChart.timeScale().fitContent();
+  }
+
+  document.getElementById('btnSample').addEventListener('click',()=>{
+    const sampleCSV = `time,open,high,low,close,volume
 2025-09-05,1965.20,1972.50,1960.10,1968.30,12000
 2025-09-04,1958.40,1966.00,1955.00,1964.50,9800
 2025-09-03,1960.00,1965.50,1950.30,1957.20,15000
@@ -97,13 +134,16 @@
 2025-08-29,1935.50,1942.00,1930.00,1940.00,14000
 2025-08-28,1928.00,1938.00,1925.00,1935.50,12500
 2025-08-27,1925.00,1932.50,1920.00,1928.00,13500`;
-      loadData(parseCSV(sample));
-    };
+    const parsed = parseCSV(sampleCSV);
+    loadData(parsed);
+  });
 
-    document.getElementById('btnPaste').onclick=()=>{
-      const text=document.getElementById('input').value;
-      loadData(parseCSV(text));
-    };
-  </script>
+  document.getElementById('btnPaste').addEventListener('click',()=>{
+    const text = document.getElementById('input').value;
+    if(!text) return;
+    const parsed = parseCSV(text);
+    loadData(parsed);
+  });
+</script>
 </body>
 </html>
