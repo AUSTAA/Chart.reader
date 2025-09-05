@@ -76,9 +76,16 @@
   <script>
     // ==== أدوات مساعدة ====
     const toTs = (t) => {
-      if (typeof t === 'number') return t > 1e12 ? Math.floor(t/1000) : t;
-      return Math.floor(new Date(t).getTime()/1000);
-    };
+  // إذا كانت قيمة نصية، اتركها كما هي لتُعرض على المحور
+  if (typeof t === 'string') return t;
+  // إذا كانت رقمية (ثواني)، حولها إلى نص YYYY-MM-DD
+  if (typeof t === 'number') {
+    const dt = new Date(t*1000);
+    return dt.toISOString().split('T')[0];
+  }
+  const dt = new Date(t);
+  return dt.toISOString().split('T')[0];
+};
     const ema = (arr, len) => {
       const k = 2/(len+1); let e=null; const out=[];
       for (let i=0;i<arr.length;i++){ const v=arr[i]; e = (e==null)? v : (v - e)*k + e; out.push(e); }
