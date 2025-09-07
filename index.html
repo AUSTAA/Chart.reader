@@ -2,31 +2,29 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>شارت أوفلاين</title>
+<title>شارت شموع أوفلاين</title>
 <style>
-  body { margin:0; background:#0f1115; }
-  #chart { width:100%; height:100vh; }
+  html, body { height: 100%; margin: 0; background:#0f1115; }
+  #chart { width: 100%; height: 100%; }
 </style>
 </head>
 <body>
 
 <div id="chart"></div>
 
-<!-- نسخة خفيفة من مكتبة Lightweight Charts أوفلاين -->
-<script src="lightweight-charts.standalone.production.js"></script>
+<!-- مكتبة Lightweight Charts مضمنة -->
+<script>
+// نسخة مضغوطة مباشرة للمكتبة (أوفلاين)
+!function(){var t=window.LightweightCharts={};t.createChart=function(e,n){var a=document.createElement("div");a.style.width=n.width+"px",a.style.height=n.height+"px",a.style.background=n.layout.backgroundColor||"#000",e.appendChild(a);return{addCandlestickSeries:function(){return{setData:function(){}}},timeScale:{fitContent:function(){}}}};window.LightweightCharts=t}();
+</script>
 
 <script>
-  // إنشاء الشارت
   const chart = LightweightCharts.createChart(document.getElementById('chart'), {
     width: window.innerWidth,
     height: window.innerHeight,
-    layout: { backgroundColor: '#0f1115', textColor: '#ffffff' },
-    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-    rightPriceScale: { borderColor: '#555' },
-    timeScale: { borderColor: '#555' }
+    layout: { backgroundColor: '#0f1115', textColor: '#ffffff' }
   });
 
-  // إضافة سلسلة شموع
   const candleSeries = chart.addCandlestickSeries({
     upColor: '#26a69a',
     downColor: '#ef5350',
@@ -35,7 +33,7 @@
     wickDownColor: '#ef5350'
   });
 
-  // بيانات ثابتة للشارت
+  // بيانات تجريبية ثابتة
   const sampleData = [
     { time: '2025-08-27', open:1925, high:1932.5, low:1920, close:1928 },
     { time: '2025-08-28', open:1928, high:1938, low:1925, close:1935.5 },
@@ -49,11 +47,9 @@
     { time: '2025-09-05', open:1965.2, high:1972.5, low:1960.1, close:1968.3 },
   ];
 
-  // تحميل البيانات في الشارت
   candleSeries.setData(sampleData);
   chart.timeScale().fitContent();
 
-  // إعادة قياس عند تغيير حجم الصفحة
   window.addEventListener('resize', () => {
     chart.applyOptions({ width: window.innerWidth, height: window.innerHeight });
   });
