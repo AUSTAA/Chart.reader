@@ -1,115 +1,60 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>شارت الذهب مع RSI</title>
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-<style>
-  body { margin:0; background:#0f1115; color:#eaeaea; font-family:system-ui; }
-  #chart { height: 60vh; }
-  #rsichart { height: 20vh; }
-  textarea { width:100%; min-height:100px; background:#0c0e13; color:#d7e0ff; border:none; padding:8px; margin-top:8px; }
-  button { margin:4px; padding:6px 12px; background:#1a1d24; color:#eaeaea; border:none; border-radius:6px; cursor:pointer; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>شارت الذهب - تجربة</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    body { margin:0; background:#0f1115; color:#eee; font-family:sans-serif; }
+    header { padding:10px; background:#151923; border-bottom:1px solid #333; }
+    #chart { height:80vh; }
+    button { padding:6px 12px; margin:5px; background:#222; color:#eee; border:1px solid #444; border-radius:6px; cursor:pointer; }
+    button:hover { background:#333; }
+  </style>
 </head>
 <body>
+  <header>
+    <h2>📊 شارت الذهب (عينة بيانات)</h2>
+    <button id="btnLoad">تحميل بيانات الذهب</button>
+  </header>
+  <div id="chart"></div>
 
-<button id="btnSample">تحميل عينة الذهب</button>
-<button id="btnPaste">تحميل من الأسفل</button>
-<textarea id="input" placeholder="ألصق بياناتك هنا بصيغة CSV"></textarea>
-<div id="chart"></div>
-<div id="rsichart"></div>
+  <script>
+    // إنشاء الشارت
+    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+      layout: { background: { color: '#0f1115' }, textColor: '#dbe1f4' },
+      grid: { vertLines:{ color:'#1c1f2b'}, horzLines:{ color:'#1c1f2b'} },
+      crosshair: { mode: 1 },
+      rightPriceScale: { borderColor: '#2a2f3a' },
+      timeScale: { borderColor: '#2a2f3a' },
+    });
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
 
-<script>
-const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-  layout: { background: { color: '#0f1115' }, textColor: '#dbe1f4' },
-  grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
-  rightPriceScale: { borderColor: '#2a2f3a' },
-  timeScale: { borderColor: '#2a2f3a' },
-  crosshair: { mode: 1 },
-  autoSize:true
-});
-const candleSeries = chart.addCandlestickSeries({ upColor:'#26a69a', downColor:'#ef5350', borderVisible:false, wickUpColor:'#26a69a', wickDownColor:'#ef5350' });
+    // بيانات الذهب (timestamp بالثواني)
+    const goldData = [
+      { time: 1746403200, open:1965.20, high:1972.50, low:1960.10, close:1968.30 }, // 2025-05-05
+      { time: 1746316800, open:1958.40, high:1966.00, low:1955.00, close:1964.50 }, // 2025-05-04
+      { time: 1746230400, open:1960.00, high:1965.50, low:1950.30, close:1957.20 }, // 2025-05-03
+      { time: 1746144000, open:1948.50, high:1962.00, low:1945.00, close:1958.00 }, // 2025-05-02
+      { time: 1746057600, open:1945.00, high:1955.00, low:1940.50, close:1950.30 }, // 2025-05-01
+      { time: 1745971200, open:1938.00, high:1948.50, low:1935.00, close:1945.10 }, // 2025-04-30
+      { time: 1745884800, open:1940.00, high:1945.50, low:1930.00, close:1938.40 }, // 2025-04-29
+      { time: 1745798400, open:1935.50, high:1942.00, low:1930.00, close:1940.00 }, // 2025-04-28
+      { time: 1745712000, open:1928.00, high:1938.00, low:1925.00, close:1935.50 }, // 2025-04-27
+      { time: 1745625600, open:1925.00, high:1932.50, low:1920.00, close:1928.00 }, // 2025-04-26
+    ];
 
-const rsiChart = LightweightCharts.createChart(document.getElementById('rsichart'), {
-  layout: { background: { color: '#0f1115' }, textColor: '#dbe1f4' },
-  grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
-  rightPriceScale: { borderColor:'#2a2f3a' },
-  timeScale: { borderColor:'#2a2f3a' },
-  autoSize:true
-});
-const rsiLine = rsiChart.addLineSeries({ lineWidth:2 });
-
-chart.timeScale().subscribeVisibleTimeRangeChange(range => {
-  if(range) rsiChart.timeScale().setVisibleRange(range);
-});
-
-// ===== أدوات =====
-function rsi(values,len=14){
-  let gains=[], losses=[];
-  for(let i=1;i<values.length;i++){
-    const diff = values[i]-values[i-1];
-    gains.push(Math.max(diff,0));
-    losses.push(Math.max(-diff,0));
-  }
-  const emaFunc = (arr,n) => {
-    const k=2/(n+1); let e=null; const out=[];
-    for(const v of arr){ e=(e===null)?v:(v-e)*k+e; out.push(e); }
-    return out;
-  }
-  const avgG = emaFunc(gains,len-1);
-  const avgL = emaFunc(losses,len-1);
-  const out=[null];
-  for(let i=0;i<avgG.length;i++){
-    const rs = (avgL[i]===0)? 100: (avgG[i]/avgL[i]);
-    out.push(100-(100/(1+rs)));
-  }
-  return out;
-}
-
-function parseCSV(text){
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  const start = lines[0].toLowerCase().includes('time')?1:0;
-  return lines.slice(start).map(l=>{
-    const [t,o,h,lw,c,v] = l.split(',');
-    const time = new Date(t).toISOString(); // صيغة ISO دقيقة
-    return { time, open:+o, high:+h, low:+lw, close:+c, volume:+v };
-  });
-}
-
-function loadData(arr){
-  candleSeries.setData(arr.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
-  const closes = arr.map(d=>d.close);
-  const rsivals = rsi(closes,14);
-  rsiLine.setData(arr.map((d,i)=>({ time:d.time, value: rsivals[i] ?? null })));
-  chart.timeScale().fitContent();
-  rsiChart.timeScale().fitContent();
-}
-
-// ===== أحداث =====
-document.getElementById('btnSample').addEventListener('click',()=>{
-  const sampleCSV = `time,open,high,low,close,volume
-2025-09-05,1965.20,1972.50,1960.10,1968.30,12000
-2025-09-04,1958.40,1966.00,1955.00,1964.50,9800
-2025-09-03,1960.00,1965.50,1950.30,1957.20,15000
-2025-09-02,1948.50,1962.00,1945.00,1958.00,20000
-2025-09-01,1945.00,1955.00,1940.50,1950.30,18000
-2025-08-31,1938.00,1948.50,1935.00,1945.10,22000
-2025-08-30,1940.00,1945.50,1930.00,1938.40,16000
-2025-08-29,1935.50,1942.00,1930.00,1940.00,14000
-2025-08-28,1928.00,1938.00,1925.00,1935.50,12500
-2025-08-27,1925.00,1932.50,1920.00,1928.00,13500`;
-  const parsed = parseCSV(sampleCSV);
-  loadData(parsed);
-});
-
-document.getElementById('btnPaste').addEventListener('click',()=>{
-  const text = document.getElementById('input').value;
-  if(!text) return;
-  const parsed = parseCSV(text);
-  loadData(parsed);
-});
-</script>
+    document.getElementById('btnLoad').addEventListener('click', () => {
+      candleSeries.setData(goldData);
+      chart.timeScale().fitContent();
+    });
+  </script>
 </body>
 </html>
