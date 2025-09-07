@@ -2,46 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>محلل الشارت - مثال محلي</title>
-
+  <title>شارت تجريبي</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#0f1115; color:#eaeaea; }
-    header{padding:10px; display:flex; gap:8px; align-items:center; background:#0b0d10; border-bottom:1px solid #222;}
-    button{background:#1a1d24;color:#eaeaea;border:1px solid #2a2f3a;padding:8px 10px;border-radius:8px;cursor:pointer;}
-    #container{display:flex; gap:12px; padding:12px;}
-    #left{flex:2;}
-    #right{flex:1; max-width:420px;}
-    #chart{height:60vh; min-height:320px; background:#0f1115; border:1px solid #222;}
-    textarea{width:100%; min-height:220px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:8px; padding:8px; resize:vertical;}
-    .hint{font-size:13px;color:#9aa4bd;margin-top:6px;}
+    body { margin:0; background:#0f1115; color:#eee; font-family: Arial, sans-serif; }
+    #chart { width:100%; height:100vh; }
   </style>
 </head>
 <body>
-  <header>
-    <strong>محلل الشارت — مثال محلي (بدون CDN)</strong>
-    <div style="margin-inline-start:auto;display:flex;gap:8px;">
-      <button id="btnSample">تحميل عيّنة</button>
-      <button id="btnPaste">تحميل من الأسفل</button>
-      <button id="btnClear">مسح الشارت</button>
-    </div>
-  </header>
+  <div id="chart"></div>
 
-  <div id="container">
-    <div id="left">
-      <div id="chart"></div>
-    </div>
-    <div id="right">
-      <div class="pill">ألصق CSV هنا (time,open,high,low,close,volume)</div>
-      <textarea id="input" placeholder="الصق CSV أو جدول هنا:&#10;time,open,high,low,close,volume&#10;2025-09-05,1965.2,1972.5,1960.1,1968.3,12000"></textarea>
-      <div class="hint">مثال مع تواريخ: YYYY-MM-DD أو ISO (سيُحوّل تلقائياً).</div>
-    </div>
-  </div>
+  <script>
+    // إنشاء الشارت
+    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+      layout: {
+        background: { color: '#0f1115' },
+        textColor: '#dbe1f4',
+      },
+      grid: {
+        vertLines: { color: '#151923' },
+        horzLines: { color: '#151923' },
+      },
+    });
 
-  <!-- هنا نحمّل الملف المحلي للمكتبة (يجب أن يكون موجود في نفس المجلد) -->
-  <script src="lightweight-charts.standalone.production.js"></script>
-  <!-- سكربت التطبيق الخاص بك -->
-  <script src="app.js"></script>
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
+
+    // بيانات عينة جاهزة (ذهب يومي)
+    const sampleData = [
+      { time: '2025-08-27', open:1925.00, high:1932.50, low:1920.00, close:1928.00 },
+      { time: '2025-08-28', open:1928.00, high:1938.00, low:1925.00, close:1935.50 },
+      { time: '2025-08-29', open:1935.50, high:1942.00, low:1930.00, close:1940.00 },
+      { time: '2025-08-30', open:1940.00, high:1945.50, low:1930.00, close:1938.40 },
+      { time: '2025-08-31', open:1938.00, high:1948.50, low:1935.00, close:1945.10 },
+      { time: '2025-09-01', open:1945.00, high:1955.00, low:1940.50, close:1950.30 },
+      { time: '2025-09-02', open:1948.50, high:1962.00, low:1945.00, close:1958.00 },
+      { time: '2025-09-03', open:1960.00, high:1965.50, low:1950.30, close:1957.20 },
+      { time: '2025-09-04', open:1958.40, high:1966.00, low:1955.00, close:1964.50 },
+      { time: '2025-09-05', open:1965.20, high:1972.50, low:1960.10, close:1968.30 },
+    ];
+
+    // تحميل البيانات في الشارت
+    candleSeries.setData(sampleData);
+    chart.timeScale().fitContent();
+  </script>
 </body>
 </html>
