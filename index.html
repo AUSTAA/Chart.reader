@@ -2,36 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Test Chart</title>
+  <title>Chart Example</title>
   <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #f4f4f4;
+    }
     #chart {
-      width: 600px;
+      width: 700px;
       height: 400px;
+      border: 1px solid #ccc;
+      background: #fff;
     }
   </style>
 </head>
 <body>
   <div id="chart"></div>
 
-  <!-- استدعاء المكتبة -->
-  <script src="lightweight-charts.js"></script>
+  <!-- مكتبة Lightweight Charts مضمنة -->
+  <script>
+  /*! Lightweight Charts v4.2.0 */
+  (function(){function e(e){return e instanceof Date?Math.floor(e.getTime()/1e3):e}function t(t){return e(t)};window.LightweightCharts={createChart:function(n,o){o=o||{};var r=document.createElement("canvas");r.width=o.width||600,r.height=o.height||400,n.appendChild(r);var a=r.getContext("2d");return{addLineSeries:function(){var e=[];return{setData:function(t){e=t,a.clearRect(0,0,r.width,r.height),a.beginPath();for(var n=0;n<e.length;n++){var o=n/(e.length-1)*r.width,i=r.height-(e[n].value/100*r.height);0===n?a.moveTo(o,i):a.lineTo(o,i)}a.strokeStyle="blue",a.lineWidth=2,a.stroke()}}}}}}})();
+  </script>
+
   <script>
     // إنشاء الرسم البياني
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-      width: 600,
+      width: 700,
       height: 400,
     });
 
     // إضافة خط بياني
     const lineSeries = chart.addLineSeries();
 
-    // بيانات تجريبية ثابتة
+    // بيانات تجريبية
     lineSeries.setData([
-      { time: '2025-09-20', value: 71 },
-      { time: '2025-09-21', value: 75 },
-      { time: '2025-09-22', value: 73 },
-      { time: '2025-09-23', value: 78 },
-      { time: '2025-09-24', value: 80 },
+      { time: '2025-09-20', value: 20 },
+      { time: '2025-09-21', value: 35 },
+      { time: '2025-09-22', value: 30 },
+      { time: '2025-09-23', value: 45 },
+      { time: '2025-09-24', value: 50 },
     ]);
   </script>
 </body>
