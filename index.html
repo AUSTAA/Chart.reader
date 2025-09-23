@@ -17,7 +17,7 @@
 <body>
 <h2>إشارات التداول (أحدث 10 أيام) مع مستويات الدخول وStop Loss وTake Profit</h2>
 
-<textarea id="dataInput" placeholder="الصق بياناتك هنا CSV: تاريخ,فتح,عالي,منخفض,إغلاق,حجم"></textarea>
+<textarea id="dataInput" placeholder="الصق بياناتك هنا CSV: time,open,high,low,close,volume"></textarea>
 <button onclick="processData()">تحليل البيانات</button>
 
 <table id="signalsTable">
@@ -34,9 +34,9 @@
 </table>
 
 <script>
+// ==== تحويل التاريخ إلى timestamp ثواني ====
 function toTs(t){
   if(typeof t==='number') return t;
-  // افصل اليوم/الشهر/السنة
   const parts = t.split('/');
   if(parts.length===3){
     const d = parseInt(parts[0],10);
@@ -44,24 +44,22 @@ function toTs(t){
     const y = parseInt(parts[2],10);
     return Math.floor(new Date(y,m,d).getTime()/1000);
   }
-  // fallback لأي تنسيق آخر
   const dt = new Date(t);
   return Math.floor(dt.getTime()/1000);
 }
 
+// ==== تحليل CSV ====
 function parseCSV(text){
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   const out=[];
-  let start=0;
-  // تجاهل السطر الأول إذا يحتوي على عنوان (غير رقمي)
-  if(isNaN(lines[0].split(/,|;/)[1])) start=1; 
-  for(let i=start;i<lines.length;i++){
+  for(let i=0;i<lines.length;i++){
     const [time,o,h,l,c,v] = lines[i].split(/,|;/).map(x=>x.replace(/,/g,'').trim());
     out.push({time:toTs(time), open:+o, high:+h, low:+l, close:+c, volume:+v});
   }
   return out;
 }
 
+// ==== توليد الإشارات ====
 function generateSignals(data){
   const signals=[];
   const lookback = 10; // آخر 10 أيام
@@ -69,7 +67,7 @@ function generateSignals(data){
   const rewardPct = 1; // 1% للـ Take Profit
 
   for(let i=lookback-1;i<data.length;i++){
-    const windowData = data.slice(i-lookback+1,i+1); // آخر 10 أيام
+    const windowData = data.slice(i-lookback+1,i+1);
     const lows = windowData.map(d=>d.low);
     const highs = windowData.map(d=>d.high);
     const support = Math.min(...lows);
@@ -92,6 +90,7 @@ function generateSignals(data){
   return signals;
 }
 
+// ==== معالجة البيانات وعرض النتائج ====
 function processData(){
   const text = document.getElementById('dataInput').value;
   const data = parseCSV(text);
