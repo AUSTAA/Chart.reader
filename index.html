@@ -3,77 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إشارات شراء وبيع</title>
+<title>إشارات شراء وبيع من جدول</title>
 <style>
-body { font-family: Arial; background:#1c1c1c; color:#eaeaea; padding:20px; }
-textarea { width:100%; height:200px; background:#2c2c2c; color:#eaeaea; border:none; padding:10px; margin-bottom:10px; }
-button { padding:10px 15px; margin-bottom:10px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; }
-table { width:100%; border-collapse: collapse; margin-top:10px; }
-th, td { border:1px solid #555; padding:8px; text-align:center; }
-th { background:#333; }
-tr:nth-child(even){ background:#2a2a2a; }
+  body { font-family: Arial, sans-serif; background:#1c1c1c; color:#eaeaea; padding:20px; }
+  table { width:100%; border-collapse: collapse; margin-bottom:10px; }
+  th, td { border:1px solid #555; padding:8px; text-align:center; }
+  th { background:#333; }
+  tr:nth-child(even){ background:#2a2a2a; }
+  input { width:100%; background:#2c2c2c; color:#eaeaea; border:none; padding:5px; }
+  button { padding:10px 15px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; margin-bottom:10px; }
 </style>
 </head>
 <body>
+<h2>إشارات التداول من جدول البيانات</h2>
 
-<h2>إشارات التداول</h2>
-<textarea id="dataInput" placeholder="الصق بياناتك هنا: date,close,high,low,open,volume"></textarea>
-<button onclick="processData()">تحليل البيانات</button>
+<table id="dataTable">
+  <thead>
+    <tr>
+      <th>تاريخ</th>
+      <th>إغلاق</th>
+      <th>أعلى</th>
+      <th>أدنى</th>
+      <th>فتح</th>
+      <th>حجم</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><input value="23/09/2025"></td>
+      <td><input value="3798.32"></td>
+      <td><input value="3824.55"></td>
+      <td><input value="3772.80"></td>
+      <td><input value="3782.30"></td>
+      <td><input value="279800"></td>
+    </tr>
+    <tr>
+      <td><input value="22/09/2025"></td>
+      <td><input value="3782.15"></td>
+      <td><input value="3784.20"></td>
+      <td><input value="3718.10"></td>
+      <td><input value="3721.30"></td>
+      <td><input value="8120"></td>
+    </tr>
+    <!-- أضف المزيد من الصفوف حسب الحاجة -->
+  </tbody>
+</table>
 
+<button onclick="processTable()">تحليل البيانات</button>
+
+<h3>النتائج</h3>
 <table id="signalsTable">
-<thead>
-<tr>
-<th>تاريخ</th><th>نوع الإشارة</th><th>سعر الدخول</th><th>Stop Loss</th><th>Take Profit</th>
-</tr>
-</thead>
-<tbody></tbody>
+  <thead>
+    <tr>
+      <th>تاريخ</th>
+      <th>نوع الإشارة</th>
+      <th>سعر الدخول</th>
+      <th>Stop Loss</th>
+      <th>Take Profit</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
 
 <script>
-function parseCSV(text){
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  return lines.map(line => {
-    const [date, close, high, low, open, volume] = line.split(',').map(x => x.trim());
-    const parts = date.split('/');
-    const time = new Date(+parts[2], parts[1]-1, +parts[0]).getTime();
-    return {time, close:+close, high:+high, low:+low, open:+open, volume:+volume};
-  });
+function toTs(dateStr){
+  const parts = dateStr.split('/');
+  // تاريخ بصيغة DD/MM/YYYY
+  return new Date(parts[2], parts[1]-1, parts[0]).getTime()/1000;
 }
 
-function generateSignals(data){
-  const signals=[];
-  const lookback = 10;
-  const riskPct = 0.5;
-  const rewardPct = 1;
-  
-  for(let i=lookback-1;i<data.length;i++){
-    const window = data.slice(i-lookback+1,i+1);
-    const lows = window.map(d=>d.low);
-    const highs = window.map(d=>d.high);
-    const support = Math.min(...lows);
-    const resistance = Math.max(...highs);
-    const d = data[i];
-
-    if(d.close <= support){
-      const entry = d.close;
-      const sl = entry*(1-riskPct/100);
-      const tp = entry*(1+rewardPct/100);
-      signals.push({date:new Date(d.time).toLocaleDateString('ar-EG'), type:'شراء ↑', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
-    }
-    else if(d.close >= resistance){
-      const entry = d.close;
-      const sl = entry*(1+riskPct/100);
-      const tp = entry*(1-rewardPct/100);
-      signals.push({date:new Date(d.time).toLocaleDateString('ar-EG'), type:'بيع ↓', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
-    }
+function processTable(){
+  const table = document.getElementById('dataTable');
+  const data = [];
+  for(let i=1;i<table.rows.length;i++){
+    const row = table.rows[i];
+    data.push({
+      time: toTs(row.cells[0].children[0].value),
+      close: parseFloat(row.cells[1].children[0].value),
+      high: parseFloat(row.cells[2].children[0].value),
+      low: parseFloat(row.cells[3].children[0].value),
+      open: parseFloat(row.cells[4].children[0].value),
+      volume: parseFloat(row.cells[5].children[0].value)
+    });
   }
-  return signals;
-}
 
-function processData(){
-  const text = document.getElementById('dataInput').value;
-  if(!text.trim()){ alert("الرجاء لصق البيانات!"); return; }
-  const data = parseCSV(text);
   const signals = generateSignals(data);
   const tbody = document.querySelector('#signalsTable tbody');
   tbody.innerHTML = '';
@@ -82,6 +95,48 @@ function processData(){
     tr.innerHTML = `<td>${s.date}</td><td>${s.type}</td><td>${s.entry}</td><td>${s.sl}</td><td>${s.tp}</td>`;
     tbody.appendChild(tr);
   }
+}
+
+// توليد إشارات البيع والشراء بناءً على الدعم والمقاومة
+function generateSignals(data){
+  const signals = [];
+  const lookback = 10;
+  const riskPct = 0.5;  // 0.5% Stop Loss
+  const rewardPct = 1;  // 1% Take Profit
+
+  for(let i=lookback-1;i<data.length;i++){
+    const windowData = data.slice(i-lookback+1,i+1);
+    const lows = windowData.map(d=>d.low);
+    const highs = windowData.map(d=>d.high);
+    const support = Math.min(...lows);
+    const resistance = Math.max(...highs);
+    const d = data[i];
+
+    if(d.close <= support){
+      const entry = d.close;
+      const sl = entry*(1-riskPct/100);
+      const tp = entry*(1+rewardPct/100);
+      signals.push({
+        date: new Date(d.time*1000).toLocaleDateString('ar-EG'),
+        type: 'شراء ↑',
+        entry: entry.toFixed(2),
+        sl: sl.toFixed(2),
+        tp: tp.toFixed(2)
+      });
+    } else if(d.close >= resistance){
+      const entry = d.close;
+      const sl = entry*(1+riskPct/100);
+      const tp = entry*(1-rewardPct/100);
+      signals.push({
+        date: new Date(d.time*1000).toLocaleDateString('ar-EG'),
+        type: 'بيع ↓',
+        entry: entry.toFixed(2),
+        sl: sl.toFixed(2),
+        tp: tp.toFixed(2)
+      });
+    }
+  }
+  return signals;
 }
 </script>
 </body>
