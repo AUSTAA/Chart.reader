@@ -1,397 +1,179 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>محلل الشارت — مناطق + RSI + اختراقات + موجة خامسة</title>
-  <!-- مكتبة الرسم Lightweight Charts من TradingView (CDN) -->
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0f1115; color:#eaeaea; }
-    header { padding: 12px 16px; border-bottom: 1px solid #222; display:flex; flex-wrap:wrap; gap:8px; align-items: center; }
-    header h1 { font-size: 16px; margin: 0 8px 0 0; }
-    .toolbar { display:flex; flex-wrap: wrap; gap:8px; align-items:center; }
-    .toolbar > * { font-size:14px; }
-    button, select { background:#1a1d24; color:#eaeaea; border:1px solid #2a2f3a; border-radius:8px; padding:8px 10px; }
-    button:hover { border-color:#3a4252; }
-    textarea { width:100%; min-height:140px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:10px; padding:10px; }
-    .wrap { padding:12px; display:grid; gap:12px; }
-    #chart { height: 56vh; }
-    #rsichart { height: 18vh; }
-    .badge { display:inline-block; padding:3px 8px; border:1px solid #2a2f3a; border-radius:999px; font-size:12px; background:#151821; }
-    .grid { display:grid; gap:12px; }
-    @media (min-width: 900px){
-      .grid { grid-template-columns: 2fr 1fr; }
-      #chart { height:60vh; }
-    }
-    .hint { font-size:12px; color:#9aa4bd; }
-    .pill { padding:4px 8px; border:1px solid #2a2f3a; border-radius:8px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محلل إشارات شراء/بيع</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:12px; background:#0f1115; color:#eaeaea; }
+  h1 { font-size:18px; margin-bottom:12px; }
+  textarea { width:100%; min-height:140px; background:#0c0e13; color:#d7e0ff; border:1px solid #2a2f3a; border-radius:10px; padding:10px; }
+  button { margin-top:8px; background:#1a1d24; color:#eaeaea; border:1px solid #2a2f3a; border-radius:8px; padding:8px 10px; cursor:pointer; }
+  button:hover { border-color:#3a4252; }
+  #signals { margin-top:12px; }
+  li { margin-bottom:4px; }
+</style>
 </head>
 <body>
-  <header>
-    <h1>محلل الشارت</h1>
-    <span class="badge">دعم/مقاومة + اختراقات + RSI + موجة 5</span>
-    <div class="toolbar">
-      <select id="tf">
-        <option value="auto">الإطار: تلقائي (من البيانات)</option>
-        <option value="1">1m</option><option value="5">5m</option><option value="15">15m</option>
-        <option value="60">1h</option><option value="240">4h</option><option value="D">يومي</option>
-      </select>
-      <button id="btnSample">تحميل عيّنة</button>
-      <button id="btnPaste">تحميل من الأسفل</button>
-      <button id="btnZones">تحديث المناطق</button>
-      <button id="btnWave">كشف موجة 5</button>
-      <button id="btnClear">مسح العلامات</button>
-    </div>
-  </header>
 
-  <div class="wrap grid">
-    <div>
-      <div id="chart"></div>
-      <div id="rsichart"></div>
-    </div>
-    <div>
-      <div class="pill">لصق بياناتك هنا (CSV أو JSON)</div>
-      <small class="hint">
-        الصيغ المدعومة: <b>CSV</b> بالأعمدة: time, open, high, low, close, volume (الوقت بالثواني/مللي/ISO)<br/>
-        أو <b>JSON</b> كمصفوفة شموع [{time,open,high,low,close,volume}].
-      </small>
-      <textarea id="input"></textarea>
-      <div class="pill">إعدادات</div>
-      <div class="wrap" style="padding:8px 0">
-        <label>حساسية السوينغ (ZigZag %) <input id="zzPct" type="number" value="3" step="0.5" style="width:80px;"/></label><br/>
-        <label>تجميع القمم/القيعان (نطاق %) <input id="zonePct" type="number" value="0.6" step="0.1" style="width:80px;"/></label><br/>
-        <label>RSI طول الفترة <input id="rsiLen" type="number" value="14" step="1" style="width:80px;"/></label><br/>
-        <label>تشبع شراء RSI <input id="rsiOB" type="number" value="70" step="1" style="width:80px;"/></label>
-        <label>تشبع بيع RSI <input id="rsiOS" type="number" value="30" step="1" style="width:80px;"/></label>
-      </div>
-      <small class="hint">
-        نصائح: استخدم مناطق بدل خطوط دقيقة. راقب إغلاق الشمعة خارج المنطقة لتأكيد الاختراق.
-      </small>
-    </div>
-  </div>
+<h1>محلل إشارات شراء/بيع</h1>
+<p>ألصق بياناتك هنا (CSV أو JSON):</p>
+<textarea id="input"></textarea>
+<button id="btnAnalyze">تحليل البيانات</button>
 
-  <script>
-    // ==== أدوات مساعدة ====
-    const toTs = (t) => {
-      if (typeof t === 'number') return t > 1e12 ? Math.floor(t/1000) : t; // ms -> s
-      const dt = new Date(t); return Math.floor(dt.getTime()/1000);
-    };
-    const ema = (arr, len) => {
-      const k = 2/(len+1); let ema=null; const out=[];
-      for (let i=0;i<arr.length;i++){
-        const v = arr[i];
-        ema = (ema==null)? v : (v - ema)*k + ema;
-        out.push(ema);
-      }
-      return out;
-    };
-    const rsi = (closes, len=14) => {
-      let gains=[], losses=[];
-      for (let i=1;i<closes.length;i++){
-        const diff = closes[i]-closes[i-1];
-        gains.push(Math.max(diff,0));
-        losses.push(Math.max(-diff,0));
-      }
-      const avgG = ema(gains, len-1);
-      const avgL = ema(losses, len-1);
-      const out=[null];
-      for (let i=0;i<avgG.length;i++){
-        const rs = (avgL[i]===0)? 100 : (avgG[i]/avgL[i]);
-        const val = 100 - (100/(1+rs));
-        out.push(val);
-      }
-      return out;
-    };
-    const pct = (a,b)=> ((a-b)/b)*100;
+<h2>الإشارات:</h2>
+<ul id="signals"></ul>
 
-    // ==== إعداد الرسوم ====
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-      layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' },
-      grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
-      crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: '#2a2f3a' },
-      timeScale: { borderColor: '#2a2f3a' },
-      autoSize: true,
+<script>
+  // ==== أدوات مساعدة ====
+  const toTs = (t) => {
+    if (typeof t === 'number') return t > 1e12 ? Math.floor(t/1000) : t; // ms -> s
+    return Math.floor(new Date(t).getTime()/1000);
+  };
+
+  const ema = (arr, len) => {
+    const k = 2/(len+1);
+    let emaVal = null;
+    const out = [];
+    for (let i=0;i<arr.length;i++){
+      const v = arr[i];
+      emaVal = (emaVal==null)? v : (v - emaVal)*k + emaVal;
+      out.push(emaVal);
+    }
+    return out;
+  };
+
+  const rsi = (closes, len=14) => {
+    let gains=[], losses=[];
+    for (let i=1;i<closes.length;i++){
+      const diff = closes[i]-closes[i-1];
+      gains.push(Math.max(diff,0));
+      losses.push(Math.max(-diff,0));
+    }
+    const avgG = ema(gains, len-1);
+    const avgL = ema(losses, len-1);
+    const out=[null];
+    for (let i=0;i<avgG.length;i++){
+      const rs = (avgL[i]===0)? 100 : (avgG[i]/avgL[i]);
+      out.push(100 - (100/(1+rs)));
+    }
+    return out;
+  };
+
+  const pct = (a,b)=> ((a-b)/b)*100;
+
+  // ==== معالجة البيانات ====
+  function parseInput(text){
+    text = text.trim();
+    if (!text) return [];
+    try {
+      if (text.startsWith('[') || text.startsWith('{')){
+        const js = JSON.parse(text);
+        return js.map(r=>({
+          time: toTs(r.time), open:+r.open, high:+r.high, low:+r.low, close:+r.close, volume:+(r.volume||0)
+        })).sort((a,b)=>a.time-b.time);
+      }
+      // CSV
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const header = lines[0].toLowerCase();
+      const hasHeader = header.includes('time') && header.includes('open');
+      const start = hasHeader? 1:0;
+      const out = [];
+      for(let i=start;i<lines.length;i++){
+        const parts = lines[i].split(/,|;|\s+/).filter(Boolean);
+        if (parts.length<5) continue;
+        const [t,o,h,l,c,v] = parts;
+        out.push({ time: toTs(t), open:+o, high:+h, low:+l, close:+c, volume:+(v||0) });
+      }
+      return out.sort((a,b)=>a.time-b.time);
+    } catch(e){ alert('تعذّر قراءة البيانات: '+e.message); return []; }
+  }
+
+  // ==== تحليل القمم/القيعان ====
+  function localExtremes(data, lookback=3){
+    const highs=[], lows=[];
+    for(let i=lookback;i<data.length-lookback;i++){
+      let isHigh=true, isLow=true;
+      for(let k=1;k<=lookback;k++){
+        if(data[i].high < data[i-k].high || data[i].high < data[i+k].high) isHigh=false;
+        if(data[i].low > data[i-k].low || data[i].low > data[i+k].low) isLow=false;
+      }
+      if(isHigh) highs.push({i, price:data[i].high, time:data[i].time});
+      if(isLow) lows.push({i, price:data[i].low, time:data[i].time});
+    }
+    return {highs,lows};
+  }
+
+  function clusterLevels(levels, rangePct){
+    levels.sort((a,b)=>a.price-b.price);
+    const clusters=[];
+    for(const lv of levels){
+      if(!clusters.length){ clusters.push([lv]); continue; }
+      const cur = clusters[clusters.length-1];
+      const base = cur.reduce((s,x)=>s+x.price,0)/cur.length;
+      if(Math.abs(pct(lv.price, base)) <= rangePct) cur.push(lv);
+      else clusters.push([lv]);
+    }
+    return clusters.map(g=>({min:Math.min(...g.map(x=>x.price)), max:Math.max(...g.map(x=>x.price)), count:g.length}))
+                   .filter(z=>z.count>=2);
+  }
+
+  function detectBreakouts(data, zonePct=0.6){
+    if(data.length<10) return [];
+    const {highs,lows}=localExtremes(data,3);
+    const zones = [...clusterLevels(highs, zonePct/100), ...clusterLevels(lows, zonePct/100)];
+    const out=[];
+    for(const z of zones){
+      const top=z.max, bot=z.min;
+      for(let i=5;i<data.length;i++){
+        const c=data[i], prev=data[i-1];
+        const inZonePrev = prev.close<=top && prev.close>=bot;
+        const closedAbove = c.close>top;
+        const closedBelow = c.close<bot;
+        if(inZonePrev && (closedAbove||closedBelow)){
+          const next = data[i+1] || c;
+          const real = closedAbove? next.close>=c.close : next.close<=c.close;
+          out.push({
+            time:c.time,
+            text:(closedAbove? 'شراء ↑ ':'بيع ↓ ') + (real?'حقيقي':'وهمي')
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  function analyzeRSI(data, len=14, ob=70, os=30){
+    const closes = data.map(d=>d.close);
+    const rsivals = rsi(closes,len);
+    const signals=[];
+    rsivals.forEach((v,i)=>{
+      if(v===null) return;
+      if(v>ob) signals.push({time:data[i].time, text:'بيع ↓ (تشبع شراء)'});
+      if(v<os) signals.push({time:data[i].time, text:'شراء ↑ (تشبع بيع)'});
     });
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor:'#26a69a', wickDownColor:'#ef5350'
+    return signals;
+  }
+
+  // ==== أحداث الزر ====
+  document.getElementById('btnAnalyze').onclick = ()=>{
+    const data = parseInput(document.getElementById('input').value);
+    if(!data.length){ alert('لا توجد بيانات صحيحة'); return; }
+
+    const breakouts = detectBreakouts(data, 0.6);
+    const rsiSignals = analyzeRSI(data, 14, 70, 30);
+
+    // دمج الإشارات وعرضها
+    const allSignals = [...breakouts, ...rsiSignals].sort((a,b)=>a.time-b.time);
+    const signalsEl = document.getElementById('signals');
+    signalsEl.innerHTML = '';
+    allSignals.forEach(s=>{
+      const li = document.createElement('li');
+      li.textContent = `${new Date(s.time*1000).toLocaleString()} → ${s.text}`;
+      signalsEl.appendChild(li);
     });
-    const volumeSeries = chart.addHistogramSeries({ priceFormat: { type:'volume' }, priceScaleId:'left', scaleMargins:{ top:0.8, bottom:0 }, color:'#39435a' });
+  };
+</script>
 
-    const rsiChart = LightweightCharts.createChart(document.getElementById('rsichart'), {
-      layout: { background: { type: 'Solid', color: '#0f1115' }, textColor: '#dbe1f4' },
-      grid: { vertLines:{ color:'#151923'}, horzLines:{ color:'#151923'} },
-      rightPriceScale: { borderColor: '#2a2f3a' },
-      timeScale: { borderColor: '#2a2f3a' },
-      autoSize: true,
-    });
-    const rsiLine = rsiChart.addLineSeries({ lineWidth: 2 });
-    const rsiOBLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
-    const rsiOSLine = rsiChart.addLineSeries({ color:'#888', lineWidth:1 });
-
-    let data=[], zones=[], markers=[], waveMarkers=[];
-    let lastTimeframe='auto';
-
-    function parseInput(text){
-      text = text.trim();
-      if (!text) return null;
-      try {
-        if (text.startsWith('[') || text.startsWith('{')) {
-          const js = JSON.parse(text);
-          return js.map(row=>({
-            time: toTs(row.time),
-            open: +row.open, high:+row.high, low:+row.low, close:+row.close, volume:+(row.volume??0)
-          })).sort((a,b)=>a.time-b.time);
-        }
-        // CSV
-        const lines = text.split(/\r?\n/).filter(Boolean);
-        const header = lines[0].toLowerCase();
-        const hasHeader = header.includes('time') && header.includes('open');
-        const start = hasHeader? 1:0;
-        const out=[];
-        for (let i=start;i<lines.length;i++){
-          const parts = lines[i].split(/,|;|\s+/).filter(Boolean);
-          if (parts.length<5) continue;
-          const [t,o,h,l,c,v] = parts;
-          out.push({ time: toTs(t), open:+o, high:+h, low:+l, close:+c, volume:+(v||0) });
-        }
-        return out.sort((a,b)=>a.time-b.time);
-      } catch(e){ alert('تعذّر قراءة البيانات: '+e.message); return null; }
-    }
-
-    function loadData(arr){
-      data = arr;
-      candleSeries.setData(arr.map(d=>({ time:d.time, open:d.open, high:d.high, low:d.low, close:d.close })));
-      volumeSeries.setData(arr.map(d=>({ time:d.time, value:d.volume })));
-      // RSI
-      const closes = arr.map(x=>x.close);
-      const rsivals = rsi(closes, +document.getElementById('rsiLen').value || 14);
-      rsiLine.setData(arr.map((d,i)=>({ time:d.time, value: rsivals[i] ?? null })));
-      const ob = +document.getElementById('rsiOB').value || 70;
-      const os = +document.getElementById('rsiOS').value || 30;
-      rsiOBLine.setData([{time:arr[0].time, value:ob},{time:arr[arr.length-1].time, value:ob}]);
-      rsiOSLine.setData([{time:arr[0].time, value:os},{time:arr[arr.length-1].time, value:os}]);
-      clearMarkers();
-      computeZones();
-    }
-
-    // === حساب مناطق الدعم/المقاومة بتجميع القمم/القيعان ضمن نطاق %
-    function localExtremes(src, lookback=3){
-      const highs=[], lows=[];
-      for (let i=lookback;i<src.length-lookback;i++){
-        let isHigh=true, isLow=true;
-        for (let k=1;k<=lookback;k++){
-          if (src[i].high < src[i-k].high || src[i].high < src[i+k].high) isHigh=false;
-          if (src[i].low  > src[i-k].low  || src[i].low  > src[i+k].low ) isLow=false;
-        }
-        if (isHigh) highs.push({i, price:src[i].high, time:src[i].time});
-        if (isLow)  lows.push({i, price:src[i].low,  time:src[i].time});
-      }
-      return { highs, lows };
-    }
-
-    function clusterLevels(levels, rangePct){
-      levels.sort((a,b)=>a.price-b.price);
-      const clusters=[];
-      for (const lv of levels){
-        if (!clusters.length){ clusters.push([lv]); continue; }
-        const cur = clusters[clusters.length-1];
-        const base = cur.reduce((s,x)=>s+x.price,0)/cur.length;
-        if (Math.abs(pct(lv.price, base)) <= rangePct) cur.push(lv);
-        else clusters.push([lv]);
-      }
-      return clusters.map(group=>{
-        const prices=group.map(g=>g.price);
-        return { min: Math.min(...prices), max: Math.max(...prices), count: group.length };
-      }).filter(z=>z.count>=2); // تجاهل الضغاف
-    }
-
-    function computeZones(){
-      if (data.length<10) return;
-      const rangePct = (+document.getElementById('zonePct').value || 0.6);
-      const {highs, lows} = localExtremes(data, 3);
-      zones = [
-        ...clusterLevels(highs, rangePct/100),
-        ...clusterLevels(lows, rangePct/100),
-      ];
-      // ارسم مناطق كـ price lines شبه شفافة
-      candleSeries.setPriceLines([]); // امسح
-      const lines=[];
-      zones.forEach(z=>{
-        const mid = (z.min+z.max)/2;
-        lines.push({
-          price: mid, color:'#44506b', lineWidth:1, lineStyle:2, axisLabelVisible:true,
-          title: `منطقة (${z.count})`
-        });
-      });
-      candleSeries.setPriceLines(lines);
-    }
-
-    // === كشف اختراقات حقيقية/وهمية بناءً على الإغلاق حول المنطقة
-    function detectBreakouts(){
-      if (!zones.length || data.length<20) return [];
-      const out=[];
-      for (const z of zones){
-        const top=z.max, bot=z.min;
-        for (let i=5;i<data.length;i++){
-          const c = data[i];
-          const prev = data[i-1];
-          const inZonePrev = (prev.close<=top && prev.close>=bot);
-          const closedAbove = c.close>top;
-          const closedBelow = c.close<bot;
-          if (inZonePrev && (closedAbove||closedBelow)){
-            // تأكيد: شمعة لاحقة تستمر، وإلا احتمال وهمي
-            const next = data[i+1] || c;
-            const real = closedAbove? next.close>=c.close : next.close<=c.close;
-            out.push({
-              time:c.time,
-              text: (closedAbove? 'اختراق ↑ ':'كسر ↓ ') + (real?'حقيقي':'وهمي'),
-              color: real? '#2dd4bf' : '#f59e0b',
-              position: closedAbove? 'belowBar':'aboveBar'
-            });
-          }
-        }
-      }
-      return out;
-    }
-
-    function applyMarkers(arr){
-      markers = arr.map(m=>({
-        time:m.time, position: m.position==='belowBar' ? LightweightCharts.SeriesMarkerPosition.BelowBar : LightweightCharts.SeriesMarkerPosition.AboveBar,
-        color:m.color, shape: LightweightCharts.SeriesMarkerShape.ArrowUp, text:m.text
-      }));
-      candleSeries.setMarkers(markers);
-    }
-    function clearMarkers(){
-      markers=[]; waveMarkers=[];
-      candleSeries.setMarkers([]);
-      // إزالة أي سلسلة رسم موجة قديمة
-      if (window.waveLine){ chart.removeSeries(window.waveLine); window.waveLine=null; }
-      if (window.waveTargets){ window.waveTargets.forEach(s=>chart.removeSeries(s)); window.waveTargets=null; }
-    }
-
-    // === ZigZag بسيط وموجة 5 مرشّحة
-    function zigzag(src, thresholdPct=3){
-      if (src.length<5) return [];
-      const zz=[];
-      let dir=0, last=src[0], lastIdx=0;
-      for (let i=1;i<src.length;i++){
-        const cur = src[i];
-        const changeUp = pct(cur.close, last.close);
-        const changeDn = pct(last.close, cur.close);
-        if (dir>=0 && changeDn>=thresholdPct){ // انعكاس لأسفل
-          zz.push({i:lastIdx, price:last.close});
-          dir=-1; last=cur; lastIdx=i;
-        } else if (dir<=0 && changeUp>=thresholdPct){ // انعكاس لأعلى
-          zz.push({i:lastIdx, price:last.close});
-          dir=1; last=cur; lastIdx=i;
-        } else {
-          // حدّث القمّة/القاع المستمر
-          if (dir>=0 && cur.close>last.close){ last=cur; lastIdx=i; }
-          if (dir<=0 && cur.close<last.close){ last=cur; lastIdx=i; }
-        }
-      }
-      zz.push({i:lastIdx, price:last.close});
-      return zz;
-    }
-
-    function detectFifthWave(src){
-      // منطق تقريبي: نبحث عن تسلسل 5 نقاط ZigZag أخير يشبه 1-2-3-4-5 دافعة
-      const threshold = +document.getElementById('zzPct').value || 3;
-      const zz = zigzag(src, threshold);
-      if (zz.length<6) return null;
-      // خذ آخر 6 نقاط لتقييم 1-2-3-4-5-(نهاية)
-      const tail = zz.slice(-6);
-      // نتوقع: 0→1 تصحيح، 1→2 اندفاع، 2→3 تصحيح، 3→4 اندفاع (محتمل موجة 5)
-      // نقرر بحسب اتجاه آخر اندفاع:
-      const isUp = tail[5].price > tail[4].price;
-      // نحدد نقاط افتراضية: 1=بداية 1، 2=نهاية 1، 3=نهاية 2، 4=نهاية 3، 5=نهاية 4، X=السعر الحالي
-      // لأغراض العرض فقط، نعيد مؤشرات وخط أهداف فيبو للموجة 5
-      const p1 = tail[0], p2=tail[1], p3=tail[2], p4=tail[3], p5=tail[4];
-      const lastBar = src[src.length-1];
-
-      // طول الموجة "1-3" (من نهاية 1 إلى نهاية 3) كمرجع للامتداد
-      const len13 = Math.abs(p4.price - p2.price);
-      // أهداف موجة 5: 0.618 و 1.0 من طول (1→3) مضافة بعد (4)
-      const t618 = isUp ? p5.price + 0.618*len13 : p5.price - 0.618*len13;
-      const t100 = isUp ? p5.price + 1.0*len13   : p5.price - 1.0*len13;
-
-      return { isUp, points:[p1,p2,p3,p4,p5], targets:[t618, t100], current:lastBar.close, lastIndex:lastBar.time };
-    }
-
-    function drawWave(wave){
-      if (!wave) return;
-      // خط يربط نقاط الموجة
-      if (window.waveLine){ chart.removeSeries(window.waveLine); }
-      const line = chart.addLineSeries({ lineWidth: 2 });
-      const pts = wave.points.map(p=>({ time: data[p.i].time, value: p.price }));
-      line.setData(pts);
-      window.waveLine = line;
-
-      if (window.waveTargets){ window.waveTargets.forEach(s=>chart.removeSeries(s)); }
-      window.waveTargets = wave.targets.map((tg,i)=>{
-        const ls = chart.addLineSeries({ lineWidth:1, lineStyle:2 });
-        ls.setData([{time:data[0].time, value:tg}, {time:data[data.length-1].time, value:tg}]);
-        return ls;
-      });
-      // ضع ماركرات توضيحية
-      waveMarkers = [
-        ...wave.points.map((p,idx)=>({
-          time: data[p.i].time,
-          position: LightweightCharts.SeriesMarkerPosition.AboveBar,
-          color: '#8ab4f8',
-          shape: LightweightCharts.SeriesMarkerShape.Circle,
-          text: `P${idx+1}`
-        })),
-        {
-          time: data[data.length-1].time,
-          position: LightweightCharts.SeriesMarkerPosition.BelowBar,
-          color: wave.isUp? '#22c55e' : '#ef4444',
-          shape: LightweightCharts.SeriesMarkerShape.ArrowUp,
-          text: wave.isUp? 'Wave5↑ (مرشّحة)' : 'Wave5↓ (مرشّحة)'
-        }
-      ];
-      candleSeries.setMarkers([...(markers||[]), ...waveMarkers]);
-    }
-
-    // === أحداث الأزرار ===
-    document.getElementById('btnZones').onclick = ()=>{
-      computeZones();
-      const br = detectBreakouts();
-      applyMarkers(br);
-    };
-    document.getElementById('btnWave').onclick = ()=>{
-      const w = detectFifthWave(data);
-      drawWave(w);
-    };
-    document.getElementById('btnClear').onclick = ()=> clearMarkers();
-    document.getElementById('btnPaste').onclick = ()=>{
-      const arr = parseInput(document.getElementById('input').value);
-      if (arr && arr.length) loadData(arr);
-    };
-    document.getElementById('btnSample').onclick = ()=>{
-      // توليد عيّنة صناعية تشبه ترند صاعد مع تصحيحات
-      const n=240; let t = Math.floor(Date.now()/1000) - n*60;
-      const out=[]; let price=100, vol=1000;
-      for (let i=0;i<n;i++){
-        const drift = 0.03*Math.sin(i/20) + 0.05*(i/n);
-        const noise = (Math.random()-0.5)*0.8;
-        const ret = drift + noise;
-        const open=price;
-        const close=Math.max(10, price*(1+ret/100));
-        const high=Math.max(open, close)*(1+Math.random()*0.003);
-        const low =Math.min(open, close)*(1-Math.random()*0.003);
-        price=close; vol = 900 + Math.random()*400;
-        out.push({ time: t, open:+open.toFixed(4), high:+high.toFixed(4), low:+low.toFixed(4), close:+close.toFixed(4), volume: Math.round(vol) });
-        t += 60; // دقيقة
-      }
-      loadData(out);
-    };
-
-    // ابدأ بعيّنة افتراضيًا لتجربة سريعة
-    document.getElementById('btnSample').click();
-  </script>
 </body>
 </html>
