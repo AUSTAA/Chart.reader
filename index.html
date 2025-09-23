@@ -3,141 +3,189 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إشارات شراء وبيع من جدول</title>
+<title>إشارات شراء وبيع (جدول بيانات)</title>
 <style>
   body { font-family: Arial, sans-serif; background:#1c1c1c; color:#eaeaea; padding:20px; }
-  table { width:100%; border-collapse: collapse; margin-bottom:10px; }
-  th, td { border:1px solid #555; padding:8px; text-align:center; }
+  table { width:100%; border-collapse: collapse; margin-bottom:15px; }
+  th, td { border:1px solid #555; padding:6px; text-align:center; }
   th { background:#333; }
   tr:nth-child(even){ background:#2a2a2a; }
-  input { width:100%; background:#2c2c2c; color:#eaeaea; border:none; padding:5px; }
-  button { padding:10px 15px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; margin-bottom:10px; }
+  input { width:90px; background:#2c2c2c; color:#eaeaea; border:none; text-align:center; }
+  button { padding:10px 15px; margin-bottom:10px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; }
 </style>
 </head>
 <body>
-<h2>إشارات التداول من جدول البيانات</h2>
+
+<h2>إشارات التداول (آخر 10 أيام) مع Stop Loss وTake Profit</h2>
 
 <table id="dataTable">
-  <thead>
-    <tr>
-      <th>تاريخ</th>
-      <th>إغلاق</th>
-      <th>أعلى</th>
-      <th>أدنى</th>
-      <th>فتح</th>
-      <th>حجم</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><input value="23/09/2025"></td>
-      <td><input value="3798.32"></td>
-      <td><input value="3824.55"></td>
-      <td><input value="3772.80"></td>
-      <td><input value="3782.30"></td>
-      <td><input value="279800"></td>
-    </tr>
-    <tr>
-      <td><input value="22/09/2025"></td>
-      <td><input value="3782.15"></td>
-      <td><input value="3784.20"></td>
-      <td><input value="3718.10"></td>
-      <td><input value="3721.30"></td>
-      <td><input value="8120"></td>
-    </tr>
-    <!-- أضف المزيد من الصفوف حسب الحاجة -->
-  </tbody>
+<thead>
+<tr>
+<th>تاريخ</th>
+<th>آخر سعر</th>
+<th>فتح</th>
+<th>أعلى</th>
+<th>أدنى</th>
+<th>الحجم</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><input value="23/09/2025"></td>
+<td><input value="3798.32"></td>
+<td><input value="3782.30"></td>
+<td><input value="3824.55"></td>
+<td><input value="3772.80"></td>
+<td><input value="279800"></td>
+</tr>
+<tr>
+<td><input value="22/09/2025"></td>
+<td><input value="3782.15"></td>
+<td><input value="3721.30"></td>
+<td><input value="3784.20"></td>
+<td><input value="3718.10"></td>
+<td><input value="8120"></td>
+</tr>
+<tr>
+<td><input value="21/09/2025"></td>
+<td><input value="3721.52"></td>
+<td><input value="3721.30"></td>
+<td><input value="3727.30"></td>
+<td><input value="3718.15"></td>
+<td><input value="9300"></td>
+</tr>
+<tr>
+<td><input value="19/09/2025"></td>
+<td><input value="3705.80"></td>
+<td><input value="3677.70"></td>
+<td><input value="3719.60"></td>
+<td><input value="3664.40"></td>
+<td><input value="186950"></td>
+</tr>
+<tr>
+<td><input value="18/09/2025"></td>
+<td><input value="3678.30"></td>
+<td><input value="3692.50"></td>
+<td><input value="3707.30"></td>
+<td><input value="3660.50"></td>
+<td><input value="224130"></td>
+</tr>
+<tr>
+<td><input value="17/09/2025"></td>
+<td><input value="3717.80"></td>
+<td><input value="3727.30"></td>
+<td><input value="3744.00"></td>
+<td><input value="3679.50"></td>
+<td><input value="256050"></td>
+</tr>
+<tr>
+<td><input value="16/09/2025"></td>
+<td><input value="3725.10"></td>
+<td><input value="3720.30"></td>
+<td><input value="3739.90"></td>
+<td><input value="3711.80"></td>
+<td><input value="192300"></td>
+</tr>
+<tr>
+<td><input value="15/09/2025"></td>
+<td><input value="3719.00"></td>
+<td><input value="3680.20"></td>
+<td><input value="3724.90"></td>
+<td><input value="3662.80"></td>
+<td><input value="189450"></td>
+</tr>
+<tr>
+<td><input value="12/09/2025"></td>
+<td><input value="3686.40"></td>
+<td><input value="3672.80"></td>
+<td><input value="3695.50"></td>
+<td><input value="3667.30"></td>
+<td><input value="154560"></td>
+</tr>
+<tr>
+<td><input value="11/09/2025"></td>
+<td><input value="3673.60"></td>
+<td><input value="3680.60"></td>
+<td><input value="3687.50"></td>
+<td><input value="3651.00"></td>
+<td><input value="214610"></td>
+</tr>
+</tbody>
 </table>
 
 <button onclick="processTable()">تحليل البيانات</button>
 
-<h3>النتائج</h3>
+<h3>إشارات الشراء والبيع:</h3>
 <table id="signalsTable">
-  <thead>
-    <tr>
-      <th>تاريخ</th>
-      <th>نوع الإشارة</th>
-      <th>سعر الدخول</th>
-      <th>Stop Loss</th>
-      <th>Take Profit</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
+<thead>
+<tr>
+<th>تاريخ</th>
+<th>نوع الإشارة</th>
+<th>سعر الدخول</th>
+<th>Stop Loss</th>
+<th>Take Profit</th>
+</tr>
+</thead>
+<tbody></tbody>
 </table>
 
 <script>
-function toTs(dateStr){
-  const parts = dateStr.split('/');
-  // تاريخ بصيغة DD/MM/YYYY
-  return new Date(parts[2], parts[1]-1, parts[0]).getTime()/1000;
-}
-
-function processTable(){
-  const table = document.getElementById('dataTable');
+function parseTable(){
+  const rows = document.querySelectorAll('#dataTable tbody tr');
   const data = [];
-  for(let i=1;i<table.rows.length;i++){
-    const row = table.rows[i];
+  rows.forEach(r=>{
+    const inputs = r.querySelectorAll('input');
+    const [time,o,h,l,c,v] = Array.from(inputs).map(inp=>inp.value.replace(/,/g,'').trim());
     data.push({
-      time: toTs(row.cells[0].children[0].value),
-      close: parseFloat(row.cells[1].children[0].value),
-      high: parseFloat(row.cells[2].children[0].value),
-      low: parseFloat(row.cells[3].children[0].value),
-      open: parseFloat(row.cells[4].children[0].value),
-      volume: parseFloat(row.cells[5].children[0].value)
+      time: new Date(time).getTime()/1000,
+      open: +o, high: +h, low: +l, close: +c, volume: +v
     });
-  }
-
-  const signals = generateSignals(data);
-  const tbody = document.querySelector('#signalsTable tbody');
-  tbody.innerHTML = '';
-  for(const s of signals){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${s.date}</td><td>${s.type}</td><td>${s.entry}</td><td>${s.sl}</td><td>${s.tp}</td>`;
-    tbody.appendChild(tr);
-  }
+  });
+  return data;
 }
 
-// توليد إشارات البيع والشراء بناءً على الدعم والمقاومة
 function generateSignals(data){
-  const signals = [];
-  const lookback = 10;
-  const riskPct = 0.5;  // 0.5% Stop Loss
-  const rewardPct = 1;  // 1% Take Profit
+  const signals=[];
+  const lookback = 10; 
+  const riskPct = 0.5; 
+  const rewardPct = 1; 
 
   for(let i=lookback-1;i<data.length;i++){
-    const windowData = data.slice(i-lookback+1,i+1);
+    const windowData = data.slice(i-lookback+1,i+1); 
     const lows = windowData.map(d=>d.low);
     const highs = windowData.map(d=>d.high);
     const support = Math.min(...lows);
     const resistance = Math.max(...highs);
     const d = data[i];
 
-    if(d.close <= support){
+    if(d.close <= support){ 
       const entry = d.close;
       const sl = entry*(1-riskPct/100);
       const tp = entry*(1+rewardPct/100);
-      signals.push({
-        date: new Date(d.time*1000).toLocaleDateString('ar-EG'),
-        type: 'شراء ↑',
-        entry: entry.toFixed(2),
-        sl: sl.toFixed(2),
-        tp: tp.toFixed(2)
-      });
-    } else if(d.close >= resistance){
+      signals.push({date:new Date(d.time*1000).toLocaleDateString('ar-EG'), type:'شراء ↑', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
+    }
+    else if(d.close >= resistance){ 
       const entry = d.close;
       const sl = entry*(1+riskPct/100);
       const tp = entry*(1-rewardPct/100);
-      signals.push({
-        date: new Date(d.time*1000).toLocaleDateString('ar-EG'),
-        type: 'بيع ↓',
-        entry: entry.toFixed(2),
-        sl: sl.toFixed(2),
-        tp: tp.toFixed(2)
-      });
+      signals.push({date:new Date(d.time*1000).toLocaleDateString('ar-EG'), type:'بيع ↓', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
     }
   }
   return signals;
 }
+
+function processTable(){
+  const data = parseTable();
+  const signals = generateSignals(data);
+  const tbody = document.querySelector('#signalsTable tbody');
+  tbody.innerHTML='';
+  signals.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML=`<td>${s.date}</td><td>${s.type}</td><td>${s.entry}</td><td>${s.sl}</td><td>${s.tp}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 </script>
+
 </body>
 </html>
