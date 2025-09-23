@@ -3,82 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إشارات شراء وبيع (أحدث 10 أيام)</title>
+<title>إشارات شراء وبيع</title>
 <style>
-  body { font-family: Arial, sans-serif; background:#1c1c1c; color:#eaeaea; padding:20px; }
-  textarea { width:100%; height:200px; background:#2c2c2c; color:#eaeaea; border:none; padding:10px; margin-bottom:10px; }
-  button { padding:10px 15px; margin-bottom:10px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; }
-  table { width:100%; border-collapse: collapse; margin-top:10px; }
-  th, td { border:1px solid #555; padding:8px; text-align:center; }
-  th { background:#333; }
-  tr:nth-child(even){ background:#2a2a2a; }
+body { font-family: Arial; background:#1c1c1c; color:#eaeaea; padding:20px; }
+textarea { width:100%; height:200px; background:#2c2c2c; color:#eaeaea; border:none; padding:10px; margin-bottom:10px; }
+button { padding:10px 15px; margin-bottom:10px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:5px; }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+th, td { border:1px solid #555; padding:8px; text-align:center; }
+th { background:#333; }
+tr:nth-child(even){ background:#2a2a2a; }
 </style>
 </head>
 <body>
-<h2>إشارات التداول (أحدث 10 أيام) مع مستويات الدخول وStop Loss وTake Profit</h2>
 
-<textarea id="dataInput" placeholder="الصق بياناتك هنا CSV: date,close,high,low,open,volume"></textarea>
+<h2>إشارات التداول</h2>
+<textarea id="dataInput" placeholder="الصق بياناتك هنا: date,close,high,low,open,volume"></textarea>
 <button onclick="processData()">تحليل البيانات</button>
 
 <table id="signalsTable">
 <thead>
 <tr>
-<th>تاريخ</th>
-<th>نوع الإشارة</th>
-<th>سعر الدخول</th>
-<th>Stop Loss</th>
-<th>Take Profit</th>
+<th>تاريخ</th><th>نوع الإشارة</th><th>سعر الدخول</th><th>Stop Loss</th><th>Take Profit</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 
 <script>
-function toTs(t){
-  // دعم صيغة dd/mm/yyyy
-  const parts = t.split('/');
-  if(parts.length===3){
-    const dt = new Date(+parts[2], parts[1]-1, +parts[0]);
-    return Math.floor(dt.getTime()/1000);
-  }
-  return Math.floor(new Date(t).getTime()/1000);
-}
-
 function parseCSV(text){
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  const out=[];
-  for(let i=0;i<lines.length;i++){
-    const [date,close,high,low,open,volume] = lines[i].split(/,|;/).map(x=>x.replace(/,/g,'').trim());
-    out.push({time:toTs(date), open:+open, high:+high, low:+low, close:+close, volume:+volume});
-  }
-  return out;
+  return lines.map(line => {
+    const [date, close, high, low, open, volume] = line.split(',').map(x => x.trim());
+    const parts = date.split('/');
+    const time = new Date(+parts[2], parts[1]-1, +parts[0]).getTime();
+    return {time, close:+close, high:+high, low:+low, open:+open, volume:+volume};
+  });
 }
 
 function generateSignals(data){
   const signals=[];
-  const lookback = 10; // آخر 10 أيام
-  const riskPct = 0.5; // 0.5% للـ Stop Loss
-  const rewardPct = 1; // 1% للـ Take Profit
-
+  const lookback = 10;
+  const riskPct = 0.5;
+  const rewardPct = 1;
+  
   for(let i=lookback-1;i<data.length;i++){
-    const windowData = data.slice(i-lookback+1,i+1);
-    const lows = windowData.map(d=>d.low);
-    const highs = windowData.map(d=>d.high);
+    const window = data.slice(i-lookback+1,i+1);
+    const lows = window.map(d=>d.low);
+    const highs = window.map(d=>d.high);
     const support = Math.min(...lows);
     const resistance = Math.max(...highs);
     const d = data[i];
 
-    if(d.close <= support){ // اشارة شراء
+    if(d.close <= support){
       const entry = d.close;
       const sl = entry*(1-riskPct/100);
       const tp = entry*(1+rewardPct/100);
-      signals.push({date:new Date(d.time*1000).toLocaleDateString('ar-EG'), type:'شراء ↑', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
+      signals.push({date:new Date(d.time).toLocaleDateString('ar-EG'), type:'شراء ↑', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
     }
-    else if(d.close >= resistance){ // اشارة بيع
+    else if(d.close >= resistance){
       const entry = d.close;
       const sl = entry*(1+riskPct/100);
       const tp = entry*(1-rewardPct/100);
-      signals.push({date:new Date(d.time*1000).toLocaleDateString('ar-EG'), type:'بيع ↓', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
+      signals.push({date:new Date(d.time).toLocaleDateString('ar-EG'), type:'بيع ↓', entry:entry.toFixed(2), sl:sl.toFixed(2), tp:tp.toFixed(2)});
     }
   }
   return signals;
@@ -86,7 +72,7 @@ function generateSignals(data){
 
 function processData(){
   const text = document.getElementById('dataInput').value;
-  if(!text.trim()){ alert("الرجاء لصق البيانات أولاً!"); return; }
+  if(!text.trim()){ alert("الرجاء لصق البيانات!"); return; }
   const data = parseCSV(text);
   const signals = generateSignals(data);
   const tbody = document.querySelector('#signalsTable tbody');
