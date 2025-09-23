@@ -17,7 +17,7 @@
 <body>
 <h2>إشارات التداول (أحدث 10 أيام) مع مستويات الدخول وStop Loss وTake Profit</h2>
 
-<textarea id="dataInput" placeholder="الصق بياناتك هنا CSV: time,open,high,low,close,volume"></textarea>
+<textarea id="dataInput" placeholder="الصق بياناتك هنا CSV: date,close,high,low,open,volume"></textarea>
 <button onclick="processData()">تحليل البيانات</button>
 
 <table id="signalsTable">
@@ -34,32 +34,26 @@
 </table>
 
 <script>
-// ==== تحويل التاريخ إلى timestamp ثواني ====
 function toTs(t){
-  if(typeof t==='number') return t;
+  // دعم صيغة dd/mm/yyyy
   const parts = t.split('/');
   if(parts.length===3){
-    const d = parseInt(parts[0],10);
-    const m = parseInt(parts[1],10)-1; // الأشهر تبدأ من 0
-    const y = parseInt(parts[2],10);
-    return Math.floor(new Date(y,m,d).getTime()/1000);
+    const dt = new Date(+parts[2], parts[1]-1, +parts[0]);
+    return Math.floor(dt.getTime()/1000);
   }
-  const dt = new Date(t);
-  return Math.floor(dt.getTime()/1000);
+  return Math.floor(new Date(t).getTime()/1000);
 }
 
-// ==== تحليل CSV ====
 function parseCSV(text){
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   const out=[];
   for(let i=0;i<lines.length;i++){
-    const [time,o,h,l,c,v] = lines[i].split(/,|;/).map(x=>x.replace(/,/g,'').trim());
-    out.push({time:toTs(time), open:+o, high:+h, low:+l, close:+c, volume:+v});
+    const [date,close,high,low,open,volume] = lines[i].split(/,|;/).map(x=>x.replace(/,/g,'').trim());
+    out.push({time:toTs(date), open:+open, high:+high, low:+low, close:+close, volume:+volume});
   }
   return out;
 }
 
-// ==== توليد الإشارات ====
 function generateSignals(data){
   const signals=[];
   const lookback = 10; // آخر 10 أيام
@@ -90,9 +84,9 @@ function generateSignals(data){
   return signals;
 }
 
-// ==== معالجة البيانات وعرض النتائج ====
 function processData(){
   const text = document.getElementById('dataInput').value;
+  if(!text.trim()){ alert("الرجاء لصق البيانات أولاً!"); return; }
   const data = parseCSV(text);
   const signals = generateSignals(data);
   const tbody = document.querySelector('#signalsTable tbody');
